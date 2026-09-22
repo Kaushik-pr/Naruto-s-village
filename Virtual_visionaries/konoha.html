@@ -1,0 +1,3607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Konohagakure VR - Hidden Leaf Village (Meta Quest 3S & WebXR)</title>
+  <meta name="description" content="Immersive 3D VR Hidden Leaf Village (Konoha) environment built with A-Frame for Meta Quest 3S and Desktop WebXR with interactive anime NPCs (Naruto, Kakashi, Sasuke, Sakura, Tsunade, Gate Guards, Anbu), dialogue system, physics colliders, and ninja combat.">
+  
+  <!-- A-Frame 1.6.0 CDN -->
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      user-select: none;
+      background-color: #0d131a;
+      color: #fff;
+    }
+
+    /* 2D Overlay UI */
+    #hud-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px 20px;
+      transition: opacity 0.3s;
+    }
+
+    .hud-top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .village-banner {
+      background: linear-gradient(135deg, rgba(185, 28, 28, 0.92), rgba(120, 15, 15, 0.92));
+      border: 2px solid #f59e0b;
+      border-radius: 12px;
+      padding: 10px 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .konoha-badge {
+      width: 42px;
+      height: 42px;
+      background: #f59e0b;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: #780f0f;
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
+    }
+
+    .village-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #fff;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    .village-subtitle {
+      font-size: 12px;
+      color: #fde68a;
+      letter-spacing: 0.5px;
+    }
+
+    .hud-right-panel {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      pointer-events: auto;
+    }
+
+    .hud-stats {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      padding: 8px 16px;
+      backdrop-filter: blur(8px);
+      text-align: right;
+    }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: 800;
+      color: #10b981;
+      font-family: monospace;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .control-btn {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 9px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s;
+      backdrop-filter: blur(8px);
+    }
+
+    .control-btn:hover {
+      background: #ef4444;
+      border-color: #f87171;
+    }
+
+    #zone-banner {
+      align-self: center;
+      background: rgba(0, 0, 0, 0.85);
+      border-left: 4px solid #ef4444;
+      border-right: 4px solid #ef4444;
+      padding: 10px 28px;
+      border-radius: 8px;
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #fef08a;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+      transform: translateY(-20px);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #zone-banner.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* NPC Interactive Dialogue Modal */
+    #dialogue-box {
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      width: 90%;
+      max-width: 620px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95));
+      border: 2px solid #f59e0b;
+      border-radius: 16px;
+      padding: 18px 24px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(14px);
+      pointer-events: auto;
+      z-index: 1500;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    #dialogue-box.active {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    .dialogue-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #f59e0b;
+      border: 3px solid #ef4444;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      flex-shrink: 0;
+      box-shadow: 0 0 16px rgba(245, 158, 11, 0.4);
+    }
+
+    .dialogue-content {
+      flex: 1;
+    }
+
+    .dialogue-name {
+      font-size: 17px;
+      font-weight: 800;
+      color: #fde047;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    .dialogue-text {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #f1f5f9;
+    }
+
+    .dialogue-close-btn {
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      align-self: flex-end;
+    }
+
+    /* Bottom HUD Bar */
+    .hud-bottom-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: auto;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .teleport-menu {
+      display: flex;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 6px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      flex-wrap: wrap;
+    }
+
+    .tp-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 7px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .tp-btn:hover {
+      background: #ef4444;
+      border-color: #f87171;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+
+    .controls-card {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-size: 11px;
+      color: #cbd5e1;
+      line-height: 1.6;
+      backdrop-filter: blur(10px);
+      max-width: 520px;
+    }
+
+    .key {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-weight: 700;
+      color: #fde047;
+      margin: 0 2px;
+      font-size: 10px;
+    }
+
+    /* Crosshair & Hitmarker */
+    #crosshair-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 32px;
+      height: 32px;
+      pointer-events: none;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #crosshair-dot {
+      width: 6px;
+      height: 6px;
+      background: #ffffff;
+      border: 1.5px solid #000;
+      border-radius: 50%;
+      transition: transform 0.15s;
+    }
+
+    #crosshair-ring {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border: 1.5px solid rgba(255, 255, 255, 0.6);
+      border-radius: 50%;
+      transition: all 0.15s;
+    }
+
+    #hitmarker {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      opacity: 0;
+      transform: scale(0.5) rotate(45deg);
+      transition: all 0.1s ease-out;
+      pointer-events: none;
+    }
+    #hitmarker.active {
+      opacity: 1;
+      transform: scale(1.3) rotate(45deg);
+    }
+    #hitmarker::before, #hitmarker::after {
+      content: '';
+      position: absolute;
+      background: #ef4444;
+      box-shadow: 0 0 6px #ef4444;
+    }
+    #hitmarker::before {
+      top: 9px; left: 0; width: 20px; height: 2px;
+    }
+    #hitmarker::after {
+      left: 9px; top: 0; width: 2px; height: 20px;
+    }
+
+    #interact-prompt {
+      position: absolute;
+      top: 58%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid #f59e0b;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #fde047;
+      pointer-events: none;
+      z-index: 999;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    #interact-prompt.visible {
+      opacity: 1;
+    }
+
+    #click-to-play {
+      position: absolute;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      color: #93c5fd;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    /* Settings Modal */
+    #settings-modal {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(15, 23, 42, 0.96);
+      border: 2px solid #ef4444;
+      border-radius: 14px;
+      padding: 24px;
+      width: 340px;
+      z-index: 2000;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      display: none;
+    }
+    #settings-modal.open {
+      display: block;
+    }
+    .settings-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      font-size: 13px;
+    }
+    .settings-row label {
+      color: #cbd5e1;
+    }
+    .settings-row select, .settings-row input[type="range"] {
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      padding: 4px 8px;
+    }
+
+    .a-in-vr #hud-overlay,
+    .a-in-vr #crosshair-container,
+    .a-in-vr #click-to-play,
+    .a-in-vr #dialogue-box,
+    .a-in-vr #interact-prompt,
+    .a-in-vr #settings-modal {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 2D Screen Overlay HUD -->
+  <div id="hud-overlay">
+    <div class="hud-top-bar">
+      <div class="village-banner">
+        <div class="konoha-badge">🍃</div>
+        <div>
+          <div class="village-title">Konohagakure</div>
+          <div class="village-subtitle">The Village Hidden in the Leaves • WebXR Experience</div>
+        </div>
+      </div>
+      
+      <div class="hud-right-panel">
+        <button id="weapon-btn" class="control-btn" onclick="toggleNinjaWeapon()">🗡️ Weapon: KUNAI</button>
+        <button id="settings-btn" class="control-btn" onclick="toggleSettingsModal()">⚙️ Settings</button>
+        <button id="sound-btn" class="control-btn">🔊 Sound: ON</button>
+        <div class="hud-stats">
+          <div class="stat-value" id="score-counter">0</div>
+          <div class="stat-label">Training Score</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="zone-banner">📍 Konoha Main Gate</div>
+
+    <!-- Interactive Dialogue Box -->
+    <div id="dialogue-box">
+      <div class="dialogue-avatar" id="diag-avatar">🍜</div>
+      <div class="dialogue-content">
+        <div class="dialogue-name" id="diag-name">Naruto Uzumaki</div>
+        <div class="dialogue-text" id="diag-text">"Believe it! Teuchi's extra-large Miso Chashu pork ramen is the greatest food in the Five Great Shinobi Nations!"</div>
+      </div>
+      <button class="dialogue-close-btn" onclick="closeDialogueBox()">Close</button>
+    </div>
+
+    <div id="interact-prompt">Press <span class="key">E</span> or Click to Talk</div>
+    <div id="click-to-play">🖱️ Click screen for FPS Mouse Lock (ESC to release)</div>
+
+    <div class="hud-bottom-bar">
+      <div class="teleport-menu">
+        <span style="font-size: 11px; align-self: center; color: #94a3b8; margin-right: 4px; font-weight: bold;">FAST TRAVEL:</span>
+        <button class="tp-btn" onclick="teleportPlayer(0, 0, 68, 0)">⛩️ Gate</button>
+        <button class="tp-btn" onclick="teleportPlayer(0, 0, 25, 0)">🍜 Ramen (Naruto)</button>
+        <button class="tp-btn" onclick="teleportPlayer(0, 1.6, -20, 0)">🏯 Hokage (Tsunade)</button>
+        <button class="tp-btn" onclick="teleportPlayer(-32, 0, 0, 90)">🎯 Field #7 (Kakashi)</button>
+        <button class="tp-btn" onclick="teleportPlayer(32, 2.5, 10, -90)">🌊 Bridge (Sasuke)</button>
+        <button class="tp-btn" onclick="teleportPlayer(15, 0, 26, -90)">🌸 Market (Sakura)</button>
+      </div>
+
+      <div class="controls-card">
+        <div><strong>🥽 Meta Quest 3S:</strong> Left Stick = Move | <span class="key">Grip</span> = Sprint | Right Stick = Turn | <span class="key">A / X</span> = Double Jump | Triggers = Dual Throw | Laser Ray = Talk to NPCs</div>
+        <div><strong>💻 Desktop:</strong> <span class="key">S</span> = Forward | <span class="key">W</span> = Backward | <span class="key">A</span><span class="key">D</span> = Strafe | <span class="key">Shift</span> = Sprint | <span class="key">Space</span> = Double Jump | <span class="key">C</span> = Crouch | <span class="key">E</span> = Talk to NPC | <span class="key">Left Click</span> / <span class="key">F</span> = Throw | <span class="key">R</span> = Switch Weapon | <span class="key">Q</span> = Shunshin Dash</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crosshair & Hitmarker -->
+  <div id="crosshair-container">
+    <div id="crosshair-ring"></div>
+    <div id="crosshair-dot"></div>
+    <div id="hitmarker"></div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 style="margin: 0; color: #f59e0b; font-size: 16px;">🎮 Controls & Physics Settings</h3>
+      <button onclick="toggleSettingsModal()" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">✕</button>
+    </div>
+    
+    <div class="settings-row">
+      <label for="turn-mode-select">VR Turn Mode:</label>
+      <select id="turn-mode-select" onchange="updateVRSetting('turnMode', this.value)">
+        <option value="snap">Snap Turn (45° Comfort)</option>
+        <option value="smooth">Smooth Turn (Cinematic)</option>
+      </select>
+    </div>
+
+    <div class="settings-row">
+      <label for="move-speed-slider">Walk Speed:</label>
+      <input type="range" id="move-speed-slider" min="0.1" max="0.35" step="0.02" value="0.18" oninput="updateVRSetting('speed', parseFloat(this.value))">
+    </div>
+
+    <div class="settings-row">
+      <label for="jump-power-slider">Chakra Jump Power:</label>
+      <input type="range" id="jump-power-slider" min="6" max="14" step="1" value="9" oninput="updateVRSetting('jumpForce', parseFloat(this.value))">
+    </div>
+
+    <div class="settings-row">
+      <label for="gravity-slider">World Gravity:</label>
+      <input type="range" id="gravity-slider" min="12" max="32" step="2" value="22" oninput="updateVRSetting('gravity', parseFloat(this.value))">
+    </div>
+
+    <button onclick="toggleSettingsModal()" class="control-btn" style="width: 100%; margin-top: 10px; background: #ef4444;">Done</button>
+  </div>
+
+  <!-- A-Frame VR Scene -->
+  <a-scene 
+    renderer="antialias: true; colorManagement: true; highRefreshRate: true; foveationLevel: 1;"
+    fog="type: exponential; color: #d6e6f2; density: 0.0055;"
+    background="color: #87CEEB;"
+    light="defaultLightsEnabled: false"
+    cursor="rayOrigin: mouse"
+    raycaster="objects: .clickable">
+
+    <!-- Procedural Texture Assets Generated in Canvas -->
+    <a-assets timeout="10000">
+      <canvas id="canvas-wood" width="256" height="256"></canvas>
+      <canvas id="canvas-roof" width="256" height="256"></canvas>
+      <canvas id="canvas-ramen" width="512" height="256"></canvas>
+      <canvas id="canvas-fire" width="256" height="256"></canvas>
+      <canvas id="canvas-leaf" width="256" height="256"></canvas>
+      <canvas id="canvas-target" width="256" height="256"></canvas>
+      <canvas id="canvas-stone" width="256" height="256"></canvas>
+      <canvas id="canvas-headband" width="256" height="128"></canvas>
+      <canvas id="canvas-tsunade" width="256" height="256"></canvas>
+      <canvas id="canvas-uchiha" width="256" height="256"></canvas>
+      <canvas id="canvas-uzumaki" width="256" height="256"></canvas>
+      <canvas id="canvas-anbu-mask" width="256" height="256"></canvas>
+      <canvas id="canvas-eyes-naruto" width="256" height="128"></canvas>
+      <canvas id="canvas-eyes-sasuke" width="256" height="128"></canvas>
+      <canvas id="canvas-eyes-sakura" width="256" height="128"></canvas>
+      <canvas id="canvas-eyes-tsunade" width="256" height="128"></canvas>
+      <canvas id="canvas-eyes-kakashi" width="256" height="128"></canvas>
+    </a-assets>
+
+    <!-- Global Sound Synthesizer Component -->
+    <a-entity id="audio-system"></a-entity>
+
+    <!-- Environment Lighting -->
+    <a-entity light="type: directional; color: #fff5ea; intensity: 1.15; castShadow: true; shadowCameraFar: 150; shadowCameraNear: 0.5; shadowCameraTop: 60; shadowCameraBottom: -60; shadowCameraRight: 60; shadowCameraLeft: -60; shadowMapHeight: 1024; shadowMapWidth: 1024; shadowBias: -0.0005;" position="35 70 45"></a-entity>
+    <a-entity light="type: hemisphere; groundColor: #4b6843; color: #bde0fe; intensity: 0.75;"></a-entity>
+    <a-entity light="type: directional; color: #ffedd5; intensity: 0.4;" position="-40 30 -50"></a-entity>
+
+    <!-- Stylized Sky Dome -->
+    <a-sky id="sky" radius="450" color="#7cc0ff" material="shader: flat; side: back;"></a-sky>
+
+    <!-- Surrounding Mountains -->
+    <a-entity id="mountain-ring" position="0 0 0"></a-entity>
+
+    <!-- Fluffy Clouds -->
+    <a-entity id="cloud-cluster" position="0 80 0" cloud-rotator></a-entity>
+
+    <!-- Floating Leaf / Sakura Petals -->
+    <a-entity id="leaf-particles" leaf-system></a-entity>
+
+    <!-- DYNAMIC SPARK & SHINOBI VFX CONTAINER -->
+    <a-entity id="physics-vfx-container"></a-entity>
+
+    <!-- ADVANCED PLAYER RIG (Supports Crouch, Double Jump, Collisions & VR Hands) -->
+    <a-entity id="player-rig" position="0 0 58" enhanced-shinobi-physics>
+      
+      <!-- Head / VR Camera -->
+      <a-camera id="head-camera" position="0 1.6 0" look-controls="pointerLockEnabled: true; reverseMouseDrag: false;" wasd-controls="enabled: false;">
+        <!-- In-VR Subtitle Billboard -->
+        <a-entity id="vr-notification" position="0 -0.35 -1.2" visible="false">
+          <a-plane width="1.3" height="0.26" color="#0f172a" opacity="0.92" material="transparent: true;"></a-plane>
+          <a-text id="vr-notif-text" value="Welcome to Konoha" align="center" width="2" color="#fde047" position="0 0 0.01"></a-text>
+        </a-entity>
+
+        <!-- Speed Lines / Dash Wind VFX -->
+        <a-entity id="dash-vfx" position="0 0 -0.8" visible="false">
+          <a-ring radius-inner="0.4" radius-outer="0.7" color="#ffffff" opacity="0.35" material="transparent: true; shader: flat;"></a-ring>
+        </a-entity>
+      </a-camera>
+
+      <!-- Left Hand (Quest 3S Controller: Weapon Throw, Locomotion & Wrist Menu) -->
+      <a-entity id="left-controller"
+        oculus-touch-controls="hand: left; model: true;"
+        laser-controls="hand: left"
+        raycaster="objects: .clickable; far: 12; showLine: true; lineColor: #38bdf8;"
+        kunai-thrower="hand: left">
+        <!-- Stylized Shinobi Left Glove with Leaf Metal Plate -->
+        <a-entity position="0 -0.02 -0.04" rotation="0 0 0" scale="0.8 0.8 0.8">
+          <a-box width="0.08" height="0.06" depth="0.1" color="#1e293b" material="roughness: 0.8;"></a-box>
+          <a-cylinder position="0 0.035 0" rotation="90 0 0" radius="0.03" height="0.005" color="#cbd5e1" material="metalness: 0.8; roughness: 0.2; src: #canvas-leaf;"></a-cylinder>
+        </a-entity>
+        <a-entity position="0 0.08 0.05" rotation="-45 90 0" scale="0.6 0.6 0.6">
+          <a-plane width="0.34" height="0.24" color="#1e293b" opacity="0.95" material="roughness: 0.8; transparent: true;">
+            <a-text value="KONOHA SHINOBI" align="center" width="0.75" color="#f59e0b" position="0 0.08 0.01"></a-text>
+            <a-text id="vr-wrist-score" value="SCORE: 0" align="center" width="0.8" color="#10b981" position="0 0.02 0.01"></a-text>
+            <a-text id="vr-wrist-zone" value="MAIN STREET" align="center" width="0.65" color="#94a3b8" position="0 -0.04 0.01"></a-text>
+            <a-text id="vr-wrist-wpn" value="WEAPON: KUNAI" align="center" width="0.55" color="#38bdf8" position="0 -0.09 0.01"></a-text>
+          </a-plane>
+        </a-entity>
+      </a-entity>
+
+      <!-- Right Hand (Quest 3S Controller: Weapon Throw, Turn, Laser ray for NPC dialogue) -->
+      <a-entity id="right-controller"
+        oculus-touch-controls="hand: right; model: true;"
+        laser-controls="hand: right"
+        raycaster="objects: .clickable; far: 12; showLine: true; lineColor: #ef4444;"
+        kunai-thrower="hand: right">
+        <!-- Stylized Shinobi Right Glove with Leaf Metal Plate -->
+        <a-entity position="0 -0.02 -0.04" rotation="0 0 0" scale="0.8 0.8 0.8">
+          <a-box width="0.08" height="0.06" depth="0.1" color="#1e293b" material="roughness: 0.8;"></a-box>
+          <a-cylinder position="0 0.035 0" rotation="90 0 0" radius="0.03" height="0.005" color="#cbd5e1" material="metalness: 0.8; roughness: 0.2; src: #canvas-leaf;"></a-cylinder>
+        </a-entity>
+        <!-- Held Weapon Model -->
+        <a-entity id="held-kunai-model" position="0 -0.02 -0.08" rotation="90 0 0" scale="0.85 0.85 0.85">
+          <a-cone radius-bottom="0.025" radius-top="0" height="0.14" color="#334155" metalness="0.7" roughness="0.3"></a-cone>
+          <a-cylinder radius="0.008" height="0.1" position="0 -0.1 0" color="#e2e8f0"></a-cylinder>
+          <a-torus radius="0.02" radius-tubular="0.004" position="0 -0.16 0" color="#334155"></a-torus>
+          <a-box width="0.04" height="0.008" depth="0.015" position="0 -0.05 0" color="#991b1b"></a-box>
+        </a-entity>
+      </a-entity>
+
+    </a-entity>
+
+    <!-- ================================================================= -->
+    <!-- WORLD ENVIRONMENT & ARCHITECTURE                                  -->
+    <!-- ================================================================= -->
+
+    <!-- Base Ground / Terrain -->
+    <a-plane position="0 -0.05 0" rotation="-90 0 0" width="300" height="300" color="#3f7238" material="roughness: 0.9; metalness: 0.1;" shadow="receive: true"></a-plane>
+    <a-plane position="0 -0.04 0" rotation="-90 0 0" width="160" height="180" color="#4d8b44" material="roughness: 0.95;"></a-plane>
+
+    <!-- Main Cobblestone Road -->
+    <a-plane position="0 0.01 25" rotation="-90 0 0" width="12" height="110" color="#b89b72" material="roughness: 0.85;" shadow="receive: true"></a-plane>
+    <a-plane position="0 0.015 15" rotation="-90 0 0" width="90" height="8" color="#a88d67" material="roughness: 0.85;"></a-plane>
+
+    <!-- 1. HOKAGE ROCK / MONUMENT -->
+    <a-entity id="hokage-monument-zone" position="0 0 -85">
+      <a-box position="0 35 0" width="160" height="75" depth="35" color="#94806a" material="roughness: 0.95;" shadow="receive: true; cast: true;"></a-box>
+      <a-box position="-55 25 5" width="60" height="60" depth="30" color="#84715c" rotation="0 15 0" material="roughness: 0.95;"></a-box>
+      <a-box position="55 25 5" width="60" height="60" depth="30" color="#84715c" rotation="0 -15 0" material="roughness: 0.95;"></a-box>
+      <a-box position="0 72 -5" width="170" height="8" depth="40" color="#4a7337" material="roughness: 1;"></a-box>
+
+      <a-entity id="cliff-trees" position="0 76 -5"></a-entity>
+
+      <!-- 4 Carved Hokage Faces -->
+      <a-entity id="face-hashirama" position="-50 40 18" rotation="0 10 0">
+        <a-box width="14" height="22" depth="6" color="#8c7864" material="roughness: 0.9;"></a-box>
+        <a-box position="0 9 1" width="16" height="7" depth="7" color="#705e4d"></a-box>
+        <a-box position="-8 0 1" width="3" height="20" depth="6" color="#705e4d"></a-box>
+        <a-box position="8 0 1" width="3" height="20" depth="6" color="#705e4d"></a-box>
+        <a-box position="0 5 3.2" width="14.2" height="3" depth="1" color="#524436"></a-box>
+        <a-box position="0 2 3.8" width="11" height="2" depth="2" color="#7a6755"></a-box>
+        <a-box position="0 -1 4.5" width="2.4" height="6" depth="3.2" color="#7a6755"></a-box>
+        <a-box position="-3.5 1 3.2" width="3.2" height="1.2" depth="1" color="#4a3e33"></a-box>
+        <a-box position="3.5 1 3.2" width="3.2" height="1.2" depth="1" color="#4a3e33"></a-box>
+        <a-box position="0 -6 3.4" width="6" height="1.2" depth="1.2" color="#4a3e33"></a-box>
+      </a-entity>
+
+      <a-entity id="face-tobirama" position="-17 40 18">
+        <a-box width="14" height="22" depth="6" color="#8c7864"></a-box>
+        <a-cone position="0 12 1" radius-bottom="8.5" radius-top="0" height="9" segments-radial="5" color="#7b6b5b" rotation="0 30 0"></a-cone>
+        <a-cone position="-7 9 1" radius-bottom="4" radius-top="0" height="7" color="#7b6b5b" rotation="0 0 35"></a-cone>
+        <a-cone position="7 9 1" radius-bottom="4" radius-top="0" height="7" color="#7b6b5b" rotation="0 0 -35"></a-cone>
+        <a-box position="0 5 3.4" width="14.2" height="3" depth="1" color="#44392e"></a-box>
+        <a-box position="-6.5 -1 3.4" width="1.8" height="9" depth="1.2" color="#44392e"></a-box>
+        <a-box position="6.5 -1 3.4" width="1.8" height="9" depth="1.2" color="#44392e"></a-box>
+        <a-box position="0 -1 4.5" width="2.2" height="6" depth="3.2" color="#7a6755"></a-box>
+        <a-box position="0 -6 3.4" width="5.5" height="1.2" depth="1.2" color="#4a3e33"></a-box>
+      </a-entity>
+
+      <a-entity id="face-hiruzen" position="17 40 18">
+        <a-box width="14" height="22" depth="6" color="#8c7864"></a-box>
+        <a-box position="0 10 2" width="15" height="8" depth="8" color="#524436"></a-box>
+        <a-cone position="0 15 2" radius-bottom="7" radius-top="0" height="6" color="#524436"></a-cone>
+        <a-box position="0 5 3.4" width="14.2" height="3" depth="1" color="#44392e"></a-box>
+        <a-box position="0 -1 4.5" width="2.4" height="6.5" depth="3.2" color="#7a6755"></a-box>
+        <a-box position="0 -8.5 3.5" width="3" height="4" depth="2" color="#705e4d"></a-box>
+        <a-box position="0 -5.5 3.4" width="5" height="1.2" depth="1.2" color="#4a3e33"></a-box>
+      </a-entity>
+
+      <a-entity id="face-minato" position="50 40 18" rotation="0 -10 0">
+        <a-box width="14" height="22" depth="6" color="#8c7864"></a-box>
+        <a-cone position="-8 11 1" radius-bottom="4.5" radius-top="0" height="9" color="#7a6855" rotation="0 0 35"></a-cone>
+        <a-cone position="8 11 1" radius-bottom="4.5" radius-top="0" height="9" color="#7a6855" rotation="0 0 -35"></a-cone>
+        <a-cone position="0 13 1" radius-bottom="5" radius-top="0" height="8" color="#7a6855"></a-cone>
+        <a-cone position="-8 1 3" radius-bottom="3" radius-top="0" height="8" color="#7a6855" rotation="20 0 45"></a-cone>
+        <a-cone position="8 1 3" radius-bottom="3" radius-top="0" height="8" color="#7a6855" rotation="20 0 -45"></a-cone>
+        <a-box position="0 5 3.4" width="14.2" height="3" depth="1" color="#44392e"></a-box>
+        <a-box position="0 -1 4.5" width="2" height="6" depth="3.4" color="#7a6755"></a-box>
+        <a-box position="0 -6 3.4" width="5" height="1.2" depth="1.2" color="#4a3e33"></a-box>
+      </a-entity>
+    </a-entity>
+
+    <!-- 2. HOKAGE RESIDENCE / TOWER -->
+    <a-entity id="hokage-tower-zone" position="0 0 -30">
+      <a-cylinder position="0 0.8 0" radius="19" height="1.6" segments-radial="24" color="#94a3b8" material="roughness: 0.9;" shadow="receive: true;"></a-cylinder>
+      <a-cylinder position="0 1.9 0" radius="17" height="0.6" segments-radial="24" color="#cbd5e1"></a-cylinder>
+
+      <a-cylinder position="0 5.5 0" radius="15" height="7" segments-radial="24" color="#c2410c" material="roughness: 0.6;" shadow="cast: true; receive: true;"></a-cylinder>
+      
+      <a-cylinder position="0 9.2 0" radius="16.5" height="0.6" segments-radial="24" color="#1e293b"></a-cylinder>
+      <a-torus position="0 9.8 0" rotation="90 0 0" radius="16.2" radius-tubular="0.25" color="#b91c1c"></a-torus>
+
+      <a-cylinder position="0 13.5 0" radius="13" height="7.5" segments-radial="24" color="#dc2626" shadow="cast: true;"></a-cylinder>
+      <a-cylinder position="0 17.5 0" radius="14.5" height="0.6" segments-radial="24" color="#1e293b"></a-cylinder>
+
+      <a-cone position="0 22 0" radius-bottom="16" radius-top="2" height="8.5" segments-radial="24" color="#991b1b" material="roughness: 0.5;" shadow="cast: true;"></a-cone>
+      <a-cylinder position="0 27 0" radius="0.5" height="3.5" color="#f59e0b" metalness="0.8" roughness="0.2"></a-cylinder>
+      <a-sphere position="0 29 0" radius="0.8" color="#fbbf24" metalness="0.8"></a-sphere>
+
+      <!-- Front "FIRE" (火) Kanji Emblem -->
+      <a-cylinder position="0 14.5 13.1" rotation="90 0 0" radius="2.8" height="0.4" color="#fef08a" material="src: #canvas-fire; roughness: 0.4;" shadow="cast: true;"></a-cylinder>
+      <a-torus position="0 14.5 13.2" radius="2.9" radius-tubular="0.15" color="#7f1d1d"></a-torus>
+
+      <a-box position="0 3.5 15.2" width="6" height="5" depth="0.5" color="#78350f" material="roughness: 0.8;"></a-box>
+      <a-box position="0 6.2 15.8" width="8" height="0.5" depth="2" color="#1e293b" rotation="10 0 0"></a-box>
+      <a-entity position="-3.5 5 15.6" red-lantern></a-entity>
+      <a-entity position="3.5 5 15.6" red-lantern></a-entity>
+    </a-entity>
+
+    <!-- 3. VILLAGE ENTRANCE GATE -->
+    <a-entity id="main-gate-zone" position="0 0 70">
+      <a-box position="-10 8 0" width="3.5" height="16" depth="3.5" color="#7c2d12" material="roughness: 0.8;" shadow="cast: true;"></a-box>
+      <a-box position="10 8 0" width="3.5" height="16" depth="3.5" color="#7c2d12" material="roughness: 0.8;" shadow="cast: true;"></a-box>
+      
+      <a-box position="-10 1 0" width="4.5" height="2" depth="4.5" color="#64748b"></a-box>
+      <a-box position="10 1 0" width="4.5" height="2" depth="4.5" color="#64748b"></a-box>
+
+      <a-box position="0 14 0" width="24" height="2" depth="3" color="#7c2d12" shadow="cast: true;"></a-box>
+      <a-box position="0 17 0" width="27" height="1.8" depth="4.2" color="#991b1b" shadow="cast: true;"></a-box>
+      <a-box position="0 18.5 0" width="29" height="1.2" depth="6" color="#1e293b" shadow="cast: true;"></a-box>
+
+      <!-- Center Leaf Swirl Crest -->
+      <a-cylinder position="0 14 1.8" rotation="90 0 0" radius="2.2" height="0.4" color="#fef08a" material="src: #canvas-leaf; roughness: 0.4;" shadow="cast: true;"></a-cylinder>
+      <a-torus position="0 14 1.9" radius="2.3" radius-tubular="0.12" color="#15803d"></a-torus>
+
+      <a-box position="-5.2 6.5 0" rotation="0 -35 0" width="7" height="12" depth="0.8" color="#166534" material="roughness: 0.7;"></a-box>
+      <a-box position="5.2 6.5 0" rotation="0 35 0" width="7" height="12" depth="0.8" color="#166534" material="roughness: 0.7;"></a-box>
+
+      <a-box position="-45 7 0" width="68" height="14" depth="3" color="#78716c" material="roughness: 0.95;" shadow="cast: true;"></a-box>
+      <a-box position="45 7 0" width="68" height="14" depth="3" color="#78716c" material="roughness: 0.95;" shadow="cast: true;"></a-box>
+      <a-box position="-45 14.5 0" width="70" height="1" depth="4.5" color="#1e293b"></a-box>
+      <a-box position="45 14.5 0" width="70" height="1" depth="4.5" color="#1e293b"></a-box>
+
+      <a-entity position="-10 9 2.2" red-lantern></a-entity>
+      <a-entity position="10 9 2.2" red-lantern></a-entity>
+    </a-entity>
+
+    <!-- 4. ICHIRAKU RAMEN SHOP -->
+    <a-entity id="ichiraku-ramen-shop" position="-14 0 25" rotation="0 90 0">
+      <a-box position="0 3 0" width="10" height="6" depth="7" color="#fef3c7" material="roughness: 0.8;" shadow="cast: true; receive: true;"></a-box>
+      
+      <a-box position="-4.8 3 3.4" width="0.4" height="6" depth="0.4" color="#5a2d0c"></a-box>
+      <a-box position="4.8 3 3.4" width="0.4" height="6" depth="0.4" color="#5a2d0c"></a-box>
+      <a-box position="-4.8 3 -3.4" width="0.4" height="6" depth="0.4" color="#5a2d0c"></a-box>
+      <a-box position="4.8 3 -3.4" width="0.4" height="6" depth="0.4" color="#5a2d0c"></a-box>
+
+      <a-box position="0 6.2 0" width="11.5" height="1" depth="8.5" color="#1e293b" shadow="cast: true;"></a-box>
+      <a-cone position="0 7.2 0" radius-bottom="6.5" radius-top="0.5" height="2.5" segments-radial="4" color="#1e293b" rotation="0 45 0"></a-cone>
+
+      <a-box position="0 1.2 3.2" width="8.5" height="2.4" depth="1.2" color="#78350f" material="roughness: 0.7;"></a-box>
+      <a-box position="0 2.45 3.3" width="9.2" height="0.15" depth="1.6" color="#a16207" material="roughness: 0.6;"></a-box>
+
+      <a-plane position="0 4.2 3.6" width="8" height="1.8" color="#ffffff" material="src: #canvas-ramen; side: double; transparent: true;" shadow="cast: true;"></a-plane>
+
+      <a-entity position="-3.8 4.2 3.8" red-lantern></a-entity>
+      <a-entity position="3.8 4.2 3.8" red-lantern></a-entity>
+
+      <!-- Ramen Bowls -->
+      <a-cylinder position="-2 2.65 3.3" radius="0.25" height="0.18" color="#ef4444">
+        <a-cylinder position="0 0.08 0" radius="0.22" height="0.04" color="#fbbf24"></a-cylinder>
+        <a-sphere position="0.05 0.1 0" radius="0.05" color="#15803d"></a-sphere>
+        <a-cylinder position="-0.05 0.1 0" radius="0.07" height="0.02" color="#ffffff"></a-cylinder>
+      </a-cylinder>
+      <a-cylinder position="1.8 2.65 3.3" radius="0.25" height="0.18" color="#ffffff">
+        <a-cylinder position="0 0.08 0" radius="0.22" height="0.04" color="#d97706"></a-cylinder>
+      </a-cylinder>
+
+      <a-cylinder position="-2.5 0.6 4.8" radius="0.35" height="1.2" color="#92400e"></a-cylinder>
+      <a-cylinder position="0 0.6 4.8" radius="0.35" height="1.2" color="#92400e"></a-cylinder>
+      <a-cylinder position="2.5 0.6 4.8" radius="0.35" height="1.2" color="#92400e"></a-cylinder>
+    </a-entity>
+
+    <!-- 5. TRAINING GROUND #7 -->
+    <a-entity id="training-ground-zone" position="-32 0 0">
+      <a-cylinder position="0 0.02 0" radius="16" height="0.05" color="#92623a" material="roughness: 0.95;"></a-cylinder>
+      <a-torus position="0 0.04 0" rotation="90 0 0" radius="16" radius-tubular="0.15" color="#57381e"></a-torus>
+
+      <!-- 3 Training Posts -->
+      <a-cylinder position="-2 2 2" radius="0.45" height="4" color="#643b1e" material="roughness: 0.9;" shadow="cast: true;">
+        <a-torus position="0 0.8 0" rotation="90 0 0" radius="0.48" radius-tubular="0.06" color="#e2e8f0"></a-torus>
+        <a-torus position="0 -0.8 0" rotation="90 0 0" radius="0.48" radius-tubular="0.06" color="#e2e8f0"></a-torus>
+      </a-cylinder>
+      <a-cylinder position="0 2.2 0" radius="0.5" height="4.4" color="#5c3417" material="roughness: 0.9;" shadow="cast: true;">
+        <a-torus position="0 1 0" rotation="90 0 0" radius="0.53" radius-tubular="0.06" color="#e2e8f0"></a-torus>
+        <a-torus position="0 -1 0" rotation="90 0 0" radius="0.53" radius-tubular="0.06" color="#e2e8f0"></a-torus>
+      </a-cylinder>
+      <a-cylinder position="2 1.9 2" radius="0.42" height="3.8" color="#643b1e" material="roughness: 0.9;" shadow="cast: true;">
+        <a-torus position="0 0.7 0" rotation="90 0 0" radius="0.45" radius-tubular="0.06" color="#e2e8f0"></a-torus>
+        <a-torus position="0 -0.7 0" rotation="90 0 0" radius="0.45" radius-tubular="0.06" color="#e2e8f0"></a-torus>
+      </a-cylinder>
+
+      <!-- Practice Targets -->
+      <a-entity class="clickable target-obj" position="0 2 -8" target-hit-box="points: 100; matType: wood">
+        <a-box position="0 -1 0" width="0.2" height="2" depth="0.2" color="#78350f"></a-box>
+        <a-box position="-0.8 -1.8 0" width="0.15" height="0.8" depth="0.15" rotation="0 0 -35" color="#78350f"></a-box>
+        <a-box position="0.8 -1.8 0" width="0.15" height="0.8" depth="0.15" rotation="0 0 35" color="#78350f"></a-box>
+        <a-cylinder position="0 0 0" rotation="90 0 0" radius="1.1" height="0.15" color="#ffffff" material="src: #canvas-target; roughness: 0.5;" shadow="cast: true;"></a-cylinder>
+      </a-entity>
+
+      <a-entity class="clickable target-obj" position="-7 2.4 -5" rotation="0 30 0" target-hit-box="points: 150; matType: wood">
+        <a-box position="0 -1.2 0" width="0.2" height="2.4" depth="0.2" color="#78350f"></a-box>
+        <a-cylinder position="0 0 0" rotation="90 0 0" radius="0.9" height="0.15" color="#ffffff" material="src: #canvas-target; roughness: 0.5;" shadow="cast: true;"></a-cylinder>
+      </a-entity>
+
+      <a-entity class="clickable target-obj" position="7 2.6 -4" rotation="0 -25 0" target-hit-box="points: 200; matType: wood"
+        animation="property: position; to: 10 2.6 -4; dir: alternate; loop: true; dur: 3000; easing: easeInOutSine">
+        <a-box position="0 -1.3 0" width="0.2" height="2.6" depth="0.2" color="#78350f"></a-box>
+        <a-cylinder position="0 0 0" rotation="90 0 0" radius="0.8" height="0.15" color="#ffffff" material="src: #canvas-target; roughness: 0.5;" shadow="cast: true;"></a-cylinder>
+      </a-entity>
+
+      <!-- Ninja Weapon Rack -->
+      <a-entity position="-5 1.2 5" rotation="0 45 0">
+        <a-box position="0 0 0" width="3" height="2.4" depth="0.4" color="#451a03"></a-box>
+        <a-box position="0 0.5 0.25" width="2.6" height="0.1" depth="0.3" color="#78350f"></a-box>
+        <a-box position="0 -0.3 0.25" width="2.6" height="0.1" depth="0.3" color="#78350f"></a-box>
+        <a-text value="WEAPONS" align="center" position="0 0.9 0.22" scale="0.6 0.6 0.6" color="#fde047"></a-text>
+      </a-entity>
+
+      <a-entity id="training-fence" position="0 0 0"></a-entity>
+    </a-entity>
+
+    <!-- 6. RIVER & BRIDGE AREA -->
+    <a-entity id="river-bridge-zone" position="32 0 10">
+      <a-plane position="0 0.05 0" rotation="-90 0 0" width="16" height="120" color="#0284c7" material="roughness: 0.1; metalness: 0.8; opacity: 0.85; transparent: true;" water-shimmer></a-plane>
+      <a-plane position="0 0.02 0" rotation="-90 0 0" width="20" height="122" color="#1e3a8a" material="roughness: 0.8;"></a-plane>
+      
+      <a-entity id="river-rocks" position="0 0 0"></a-entity>
+
+      <!-- Arched Red Bridge -->
+      <a-entity id="arch-bridge" position="0 0 0" rotation="0 90 0">
+        <a-cylinder position="0 -4.5 0" rotation="0 0 90" radius="6" height="6" theta-start="60" theta-length="60" open-ended="true" side="double" color="#b91c1c" material="roughness: 0.6;"></a-cylinder>
+        <a-box position="0 1.2 0" width="14" height="0.4" depth="5" color="#991b1b" shadow="cast: true; receive: true;"></a-box>
+        <a-box position="0 1.3 0" width="13" height="0.1" depth="4.2" color="#78350f"></a-box>
+
+        <!-- Rails -->
+        <a-box position="0 2.2 2.3" width="14" height="0.15" depth="0.2" color="#b91c1c"></a-box>
+        <a-box position="0 2.2 -2.3" width="14" height="0.15" depth="0.2" color="#b91c1c"></a-box>
+        
+        <a-cylinder position="-6 1.7 2.3" radius="0.12" height="1" color="#7f1d1d"></a-cylinder>
+        <a-cylinder position="-2 1.7 2.3" radius="0.12" height="1" color="#7f1d1d"></a-cylinder>
+        <a-cylinder position="2 1.7 2.3" radius="0.12" height="1" color="#7f1d1d"></a-cylinder>
+        <a-cylinder position="6 1.7 2.3" radius="0.12" height="1" color="#7f1d1d"></a-cylinder>
+        
+        <a-cylinder position="-6 1.7 -2.3" radius="0.12" height="1" color="#7f1d1d"></a-cylinder>
+        <a-cylinder position="-2 1.7 -2.3" radius="0.12" height="1" color="#7f1d1d"></a-cylinder>
+        <a-cylinder position="2 1.7 -2.3" radius="0.12" height="1" color="#7f1d1d"></a-cylinder>
+        <a-cylinder position="6 1.7 -2.3" radius="0.12" height="1" color="#7f1d1d"></a-cylinder>
+
+        <a-sphere position="-6 2.3 2.3" radius="0.15" color="#fbbf24" metalness="0.8"></a-sphere>
+        <a-sphere position="6 2.3 2.3" radius="0.15" color="#fbbf24" metalness="0.8"></a-sphere>
+        <a-sphere position="-6 2.3 -2.3" radius="0.15" color="#fbbf24" metalness="0.8"></a-sphere>
+        <a-sphere position="6 2.3 -2.3" radius="0.15" color="#fbbf24" metalness="0.8"></a-sphere>
+      </a-entity>
+    </a-entity>
+
+    <!-- 7. VILLAGE BUILDINGS -->
+    <a-entity id="village-buildings"></a-entity>
+
+    <!-- 8. INFRASTRUCTURE & LANTERNS -->
+    <a-entity id="village-infrastructure"></a-entity>
+
+    <!-- 9. NATURE & SAKURA TREES -->
+    <a-entity id="village-nature"></a-entity>
+
+    <!-- ================================================================= -->
+    <!-- 10. INTERACTIVE ANIME 3D NPCS (Naruto, Kakashi, Sasuke, Sakura, Tsunade, Guards, Anbu) -->
+    <!-- ================================================================= -->
+    <a-entity id="village-npcs"></a-entity>
+
+  </a-scene>
+
+  <!-- JAVASCRIPT GAME ENGINE, CONTROLLERS, PHYSICS & NPC SYSTEM -->
+  <script>
+    /* 1. Canvas Texture Generation */
+    function generateCanvasTextures() {
+      const cvWood = document.getElementById('canvas-wood');
+      const ctxW = cvWood.getContext('2d');
+      ctxW.fillStyle = '#8b5a2b';
+      ctxW.fillRect(0, 0, 256, 256);
+      ctxW.fillStyle = '#6b421a';
+      for (let i = 0; i < 256; i += 16) {
+        ctxW.fillRect(0, i, 256, 2);
+        ctxW.fillRect(0, i + 8, 256, 1);
+      }
+
+      const cvRoof = document.getElementById('canvas-roof');
+      const ctxR = cvRoof.getContext('2d');
+      ctxR.fillStyle = '#1e293b';
+      ctxR.fillRect(0, 0, 256, 256);
+      ctxR.fillStyle = '#0f172a';
+      for (let y = 0; y < 256; y += 20) {
+        ctxR.fillRect(0, y, 256, 4);
+        for (let x = (y % 40 === 0 ? 0 : 15); x < 256; x += 30) {
+          ctxR.fillRect(x, y, 4, 20);
+        }
+      }
+
+      const cvRamen = document.getElementById('canvas-ramen');
+      const ctxRm = cvRamen.getContext('2d');
+      ctxRm.fillStyle = '#ffffff';
+      ctxRm.fillRect(0, 0, 512, 256);
+      ctxRm.fillStyle = '#1e3a8a';
+      ctxRm.fillRect(0, 210, 512, 46);
+      ctxRm.fillStyle = '#94a3b8';
+      ctxRm.fillRect(128, 60, 4, 196);
+      ctxRm.fillRect(256, 60, 4, 196);
+      ctxRm.fillRect(384, 60, 4, 196);
+      ctxRm.fillStyle = '#b91c1c';
+      ctxRm.font = 'bold 54px sans-serif';
+      ctxRm.textAlign = 'center';
+      ctxRm.fillText('一 楽', 190, 110);
+      ctxRm.font = 'bold 44px sans-serif';
+      ctxRm.fillText('ラーメン', 330, 110);
+      ctxRm.beginPath();
+      ctxRm.arc(260, 160, 24, 0, Math.PI * 2);
+      ctxRm.strokeStyle = '#ef4444';
+      ctxRm.lineWidth = 6;
+      ctxRm.stroke();
+
+      const cvFire = document.getElementById('canvas-fire');
+      const ctxF = cvFire.getContext('2d');
+      ctxF.fillStyle = '#ffffff';
+      ctxF.fillRect(0, 0, 256, 256);
+      ctxF.fillStyle = '#b91c1c';
+      ctxF.beginPath();
+      ctxF.arc(128, 128, 115, 0, Math.PI * 2);
+      ctxF.fill();
+      ctxF.fillStyle = '#ffffff';
+      ctxF.font = 'bold 130px "MS Mincho", "Hiragino Mincho Pro", serif';
+      ctxF.textAlign = 'center';
+      ctxF.textBaseline = 'middle';
+      ctxF.fillText('火', 128, 134);
+
+      const cvLeaf = document.getElementById('canvas-leaf');
+      const ctxL = cvLeaf.getContext('2d');
+      ctxL.fillStyle = '#fef08a';
+      ctxL.fillRect(0, 0, 256, 256);
+      ctxL.strokeStyle = '#15803d';
+      ctxL.fillStyle = '#15803d';
+      ctxL.lineWidth = 14;
+      ctxL.lineCap = 'round';
+      ctxL.beginPath();
+      ctxL.arc(128, 136, 60, 0.2 * Math.PI, 1.8 * Math.PI, false);
+      ctxL.stroke();
+      ctxL.beginPath();
+      ctxL.moveTo(180, 100);
+      ctxL.lineTo(215, 65);
+      ctxL.lineTo(165, 80);
+      ctxL.fill();
+
+      // Detailed Shinobi Headband Metal Plate
+      const cvHb = document.getElementById('canvas-headband');
+      if (cvHb) {
+        const ctxHb = cvHb.getContext('2d');
+        const grad = ctxHb.createLinearGradient(0, 0, 0, 128);
+        grad.addColorStop(0, '#f1f5f9');
+        grad.addColorStop(0.5, '#cbd5e1');
+        grad.addColorStop(1, '#94a3b8');
+        ctxHb.fillStyle = grad;
+        ctxHb.roundRect ? ctxHb.roundRect(8, 8, 240, 112, 16) : ctxHb.fillRect(8, 8, 240, 112);
+        ctxHb.fill();
+        ctxHb.strokeStyle = '#475569';
+        ctxHb.lineWidth = 4;
+        ctxHb.stroke();
+
+        // 4 Corner Rivets
+        const rivets = [{x: 24, y: 24}, {x: 232, y: 24}, {x: 24, y: 104}, {x: 232, y: 104}, {x: 128, y: 20}, {x: 128, y: 108}];
+        rivets.forEach(r => {
+          ctxHb.beginPath();
+          ctxHb.arc(r.x, r.y, 5, 0, Math.PI * 2);
+          ctxHb.fillStyle = '#334155';
+          ctxHb.fill();
+          ctxHb.beginPath();
+          ctxHb.arc(r.x - 1, r.y - 1, 2, 0, Math.PI * 2);
+          ctxHb.fillStyle = '#f8fafc';
+          ctxHb.fill();
+        });
+
+        // Engraved Leaf Swirl
+        ctxHb.strokeStyle = '#1e293b';
+        ctxHb.fillStyle = '#1e293b';
+        ctxHb.lineWidth = 7;
+        ctxHb.lineCap = 'round';
+        ctxHb.beginPath();
+        ctxHb.arc(128, 68, 30, 0.2 * Math.PI, 1.8 * Math.PI, false);
+        ctxHb.stroke();
+        ctxHb.beginPath();
+        ctxHb.moveTo(154, 50);
+        ctxHb.lineTo(172, 32);
+        ctxHb.lineTo(146, 40);
+        ctxHb.fill();
+      }
+
+      // Lady Tsunade's Gamble Kanji Emblem ("賭")
+      const cvTsunade = document.getElementById('canvas-tsunade');
+      if (cvTsunade) {
+        const ctxTs = cvTsunade.getContext('2d');
+        ctxTs.fillStyle = '#15803d';
+        ctxTs.fillRect(0, 0, 256, 256);
+        ctxTs.beginPath();
+        ctxTs.arc(128, 128, 105, 0, Math.PI * 2);
+        ctxTs.fillStyle = '#dc2626';
+        ctxTs.fill();
+        ctxTs.strokeStyle = '#fef08a';
+        ctxTs.lineWidth = 8;
+        ctxTs.stroke();
+        ctxTs.fillStyle = '#ffffff';
+        ctxTs.font = 'bold 115px "MS Mincho", "Hiragino Mincho Pro", serif';
+        ctxTs.textAlign = 'center';
+        ctxTs.textBaseline = 'middle';
+        ctxTs.fillText('賭', 128, 134);
+      }
+
+      // Uchiha Clan Crest Fan
+      const cvUchiha = document.getElementById('canvas-uchiha');
+      if (cvUchiha) {
+        const ctxU = cvUchiha.getContext('2d');
+        ctxU.clearRect(0, 0, 256, 256);
+        // Top Red Half
+        ctxU.beginPath();
+        ctxU.arc(128, 105, 75, Math.PI, 0, false);
+        ctxU.fillStyle = '#dc2626';
+        ctxU.fill();
+        // Bottom White Half
+        ctxU.beginPath();
+        ctxU.arc(128, 105, 75, 0, Math.PI, false);
+        ctxU.fillStyle = '#ffffff';
+        ctxU.fill();
+        // White Handle
+        ctxU.fillStyle = '#ffffff';
+        ctxU.fillRect(116, 175, 24, 60);
+        ctxU.strokeStyle = '#0f172a';
+        ctxU.lineWidth = 4;
+        ctxU.strokeRect(116, 175, 24, 60);
+        ctxU.beginPath();
+        ctxU.arc(128, 105, 75, 0, Math.PI * 2);
+        ctxU.stroke();
+      }
+
+      // Uzumaki Clan Spiral Crest
+      const cvUzumaki = document.getElementById('canvas-uzumaki');
+      if (cvUzumaki) {
+        const ctxUz = cvUzumaki.getContext('2d');
+        ctxUz.fillStyle = '#ffffff';
+        ctxUz.beginPath();
+        ctxUz.arc(128, 128, 110, 0, Math.PI * 2);
+        ctxUz.fill();
+        ctxUz.strokeStyle = '#dc2626';
+        ctxUz.lineWidth = 18;
+        ctxUz.lineCap = 'round';
+        ctxUz.beginPath();
+        for (let a = 0; a < 3.2 * Math.PI; a += 0.1) {
+          const r = 18 + a * 8.5;
+          const x = 128 + Math.cos(a) * r;
+          const y = 128 + Math.sin(a) * r;
+          if (a === 0) ctxUz.moveTo(x, y);
+          else ctxUz.lineTo(x, y);
+        }
+        ctxUz.stroke();
+      }
+
+      // Anbu Porcelain Mask Texture
+      const cvAnbu = document.getElementById('canvas-anbu-mask');
+      if (cvAnbu) {
+        const ctxA = cvAnbu.getContext('2d');
+        ctxA.fillStyle = '#ffffff';
+        ctxA.fillRect(0, 0, 256, 256);
+        ctxA.fillStyle = '#dc2626';
+        // Eye Swoop Markings
+        ctxA.beginPath();
+        ctxA.moveTo(40, 90);
+        ctxA.quadraticCurveTo(80, 50, 110, 110);
+        ctxA.quadraticCurveTo(70, 105, 40, 90);
+        ctxA.fill();
+
+        ctxA.beginPath();
+        ctxA.moveTo(216, 90);
+        ctxA.quadraticCurveTo(176, 50, 146, 110);
+        ctxA.quadraticCurveTo(186, 105, 216, 90);
+        ctxA.fill();
+
+        // Cheek Whisker Bars
+        ctxA.fillRect(35, 145, 45, 8);
+        ctxA.fillRect(35, 165, 40, 8);
+        ctxA.fillRect(176, 145, 45, 8);
+        ctxA.fillRect(181, 165, 40, 8);
+
+        // Forehead Red Diamond Dot
+        ctxA.beginPath();
+        ctxA.arc(128, 55, 12, 0, Math.PI * 2);
+        ctxA.fill();
+
+        // Slit Eyes
+        ctxA.fillStyle = '#0f172a';
+        ctxA.beginPath();
+        ctxA.ellipse(82, 105, 18, 5, -0.2, 0, Math.PI * 2);
+        ctxA.ellipse(174, 105, 18, 5, 0.2, 0, Math.PI * 2);
+        ctxA.fill();
+      }
+
+      // Naruto Anime Face Texture
+      const cvNaruto = document.getElementById('canvas-eyes-naruto');
+      if (cvNaruto) {
+        const ctxN = cvNaruto.getContext('2d');
+        ctxN.fillStyle = '#fed7aa';
+        ctxN.fillRect(0, 0, 256, 128);
+        // Eyes
+        [{x: 75, r: 1}, {x: 181, r: -1}].forEach(e => {
+          ctxN.fillStyle = '#ffffff';
+          ctxN.beginPath();
+          ctxN.ellipse(e.x, 52, 22, 16, 0, 0, Math.PI * 2);
+          ctxN.fill();
+          ctxN.fillStyle = '#0284c7';
+          ctxN.beginPath();
+          ctxN.arc(e.x, 52, 12, 0, Math.PI * 2);
+          ctxN.fill();
+          ctxN.fillStyle = '#0369a1';
+          ctxN.beginPath();
+          ctxN.arc(e.x, 52, 6, 0, Math.PI * 2);
+          ctxN.fill();
+          ctxN.fillStyle = '#ffffff';
+          ctxN.beginPath();
+          ctxN.arc(e.x - 4, 48, 4, 0, Math.PI * 2);
+          ctxN.fill();
+          // Eyelid line
+          ctxN.strokeStyle = '#1e293b';
+          ctxN.lineWidth = 3.5;
+          ctxN.beginPath();
+          ctxN.arc(e.x, 50, 22, 1.1 * Math.PI, 1.9 * Math.PI);
+          ctxN.stroke();
+          // Blonde Eyebrow
+          ctxN.strokeStyle = '#d97706';
+          ctxN.lineWidth = 4.5;
+          ctxN.beginPath();
+          ctxN.moveTo(e.x - 22 * e.r, 26);
+          ctxN.lineTo(e.x + 22 * e.r, 32);
+          ctxN.stroke();
+        });
+        // 6 Whiskers
+        ctxN.strokeStyle = '#78350f';
+        ctxN.lineWidth = 2.5;
+        [-1, 1].forEach(s => {
+          const cx = s === -1 ? 40 : 216;
+          ctxN.beginPath();
+          ctxN.moveTo(cx - 18 * s, 74); ctxN.lineTo(cx + 8 * s, 78);
+          ctxN.moveTo(cx - 20 * s, 86); ctxN.lineTo(cx + 10 * s, 88);
+          ctxN.moveTo(cx - 16 * s, 98); ctxN.lineTo(cx + 8 * s, 98);
+          ctxN.stroke();
+        });
+        // Confident Grin
+        ctxN.strokeStyle = '#9a3412';
+        ctxN.lineWidth = 3;
+        ctxN.beginPath();
+        ctxN.arc(128, 92, 18, 0.15 * Math.PI, 0.85 * Math.PI);
+        ctxN.stroke();
+      }
+
+      // Sasuke Anime Face Texture
+      const cvSasuke = document.getElementById('canvas-eyes-sasuke');
+      if (cvSasuke) {
+        const ctxS = cvSasuke.getContext('2d');
+        ctxS.fillStyle = '#fed7aa';
+        ctxS.fillRect(0, 0, 256, 128);
+        [{x: 75, r: 1}, {x: 181, r: -1}].forEach(e => {
+          ctxS.fillStyle = '#ffffff';
+          ctxS.beginPath();
+          ctxS.ellipse(e.x, 54, 24, 13, -0.1 * e.r, 0, Math.PI * 2);
+          ctxS.fill();
+          ctxS.fillStyle = '#0f172a';
+          ctxS.beginPath();
+          ctxS.ellipse(e.x, 54, 11, 11, 0, 0, Math.PI * 2);
+          ctxS.fill();
+          ctxS.fillStyle = '#ffffff';
+          ctxS.beginPath();
+          ctxS.arc(e.x - 3, 50, 3, 0, Math.PI * 2);
+          ctxS.fill();
+          // Sharp Eyelash
+          ctxS.strokeStyle = '#0f172a';
+          ctxS.lineWidth = 4;
+          ctxS.beginPath();
+          ctxS.moveTo(e.x - 25 * e.r, 58);
+          ctxS.lineTo(e.x, 44);
+          ctxS.lineTo(e.x + 25 * e.r, 52);
+          ctxS.stroke();
+          // Dark Eyebrow slanted
+          ctxS.strokeStyle = '#0f172a';
+          ctxS.lineWidth = 4;
+          ctxS.beginPath();
+          ctxS.moveTo(e.x - 22 * e.r, 34);
+          ctxS.lineTo(e.x + 24 * e.r, 26);
+          ctxS.stroke();
+        });
+        // Stoic mouth line
+        ctxS.strokeStyle = '#7c2d12';
+        ctxS.lineWidth = 2.5;
+        ctxS.beginPath();
+        ctxS.moveTo(116, 96);
+        ctxS.lineTo(140, 96);
+        ctxS.stroke();
+      }
+
+      // Sakura Anime Face Texture
+      const cvSakura = document.getElementById('canvas-eyes-sakura');
+      if (cvSakura) {
+        const ctxSk = cvSakura.getContext('2d');
+        ctxSk.fillStyle = '#fed7aa';
+        ctxSk.fillRect(0, 0, 256, 128);
+        [{x: 75, r: 1}, {x: 181, r: -1}].forEach(e => {
+          ctxSk.fillStyle = '#ffffff';
+          ctxSk.beginPath();
+          ctxSk.ellipse(e.x, 52, 22, 17, 0, 0, Math.PI * 2);
+          ctxSk.fill();
+          ctxSk.fillStyle = '#10b981';
+          ctxSk.beginPath();
+          ctxSk.arc(e.x, 52, 13, 0, Math.PI * 2);
+          ctxSk.fill();
+          ctxSk.fillStyle = '#047857';
+          ctxSk.beginPath();
+          ctxSk.arc(e.x, 52, 7, 0, Math.PI * 2);
+          ctxSk.fill();
+          ctxSk.fillStyle = '#ffffff';
+          ctxSk.beginPath();
+          ctxSk.arc(e.x - 4, 47, 4.5, 0, Math.PI * 2);
+          ctxSk.arc(e.x + 4, 56, 2, 0, Math.PI * 2);
+          ctxSk.fill();
+          // Eyelashes
+          ctxSk.strokeStyle = '#1e293b';
+          ctxSk.lineWidth = 3.5;
+          ctxSk.beginPath();
+          ctxSk.arc(e.x, 50, 22, 1.15 * Math.PI, 1.85 * Math.PI);
+          ctxSk.stroke();
+          // Pink Eyebrow
+          ctxSk.strokeStyle = '#db2777';
+          ctxSk.lineWidth = 3.5;
+          ctxSk.beginPath();
+          ctxSk.moveTo(e.x - 20 * e.r, 28);
+          ctxSk.lineTo(e.x + 20 * e.r, 28);
+          ctxSk.stroke();
+        });
+        // Soft smile
+        ctxSk.strokeStyle = '#e11d48';
+        ctxSk.lineWidth = 2.5;
+        ctxSk.beginPath();
+        ctxSk.arc(128, 92, 12, 0.1 * Math.PI, 0.9 * Math.PI);
+        ctxSk.stroke();
+      }
+
+      // Tsunade Anime Face Texture
+      const cvTsunadeFace = document.getElementById('canvas-eyes-tsunade');
+      if (cvTsunadeFace) {
+        const ctxTsF = cvTsunadeFace.getContext('2d');
+        ctxTsF.fillStyle = '#fed7aa';
+        ctxTsF.fillRect(0, 0, 256, 128);
+        // Purple Diamond Byakugou Seal
+        ctxTsF.fillStyle = '#6b21a8';
+        ctxTsF.beginPath();
+        ctxTsF.moveTo(128, 12);
+        ctxTsF.lineTo(136, 24);
+        ctxTsF.lineTo(128, 36);
+        ctxTsF.lineTo(120, 24);
+        ctxTsF.closePath();
+        ctxTsF.fill();
+
+        [{x: 75, r: 1}, {x: 181, r: -1}].forEach(e => {
+          ctxTsF.fillStyle = '#ffffff';
+          ctxTsF.beginPath();
+          ctxTsF.ellipse(e.x, 58, 22, 15, 0, 0, Math.PI * 2);
+          ctxTsF.fill();
+          ctxTsF.fillStyle = '#d97706';
+          ctxTsF.beginPath();
+          ctxTsF.arc(e.x, 58, 12, 0, Math.PI * 2);
+          ctxTsF.fill();
+          ctxTsF.fillStyle = '#78350f';
+          ctxTsF.beginPath();
+          ctxTsF.arc(e.x, 58, 6, 0, Math.PI * 2);
+          ctxTsF.fill();
+          ctxTsF.fillStyle = '#ffffff';
+          ctxTsF.beginPath();
+          ctxTsF.arc(e.x - 4, 54, 4, 0, Math.PI * 2);
+          ctxTsF.fill();
+          // Eyelashes & Eyeliner
+          ctxTsF.strokeStyle = '#1e293b';
+          ctxTsF.lineWidth = 4;
+          ctxTsF.beginPath();
+          ctxTsF.arc(e.x, 56, 22, 1.15 * Math.PI, 1.85 * Math.PI);
+          ctxTsF.stroke();
+          // Blonde arched eyebrow
+          ctxTsF.strokeStyle = '#b45309';
+          ctxTsF.lineWidth = 3.5;
+          ctxTsF.beginPath();
+          ctxTsF.moveTo(e.x - 22 * e.r, 38);
+          ctxTsF.quadraticCurveTo(e.x, 30, e.x + 22 * e.r, 36);
+          ctxTsF.stroke();
+        });
+        // Red Lips
+        ctxTsF.fillStyle = '#dc2626';
+        ctxTsF.beginPath();
+        ctxTsF.ellipse(128, 98, 14, 5, 0, 0, Math.PI * 2);
+        ctxTsF.fill();
+      }
+
+      // Kakashi Face Mask & Right Eye Texture
+      const cvKakashi = document.getElementById('canvas-eyes-kakashi');
+      if (cvKakashi) {
+        const ctxK = cvKakashi.getContext('2d');
+        ctxK.fillStyle = '#fed7aa';
+        ctxK.fillRect(0, 0, 256, 128);
+        // Navy Mask Bottom
+        ctxK.fillStyle = '#0f172a';
+        ctxK.fillRect(0, 72, 256, 56);
+        ctxK.beginPath();
+        ctxK.moveTo(0, 72);
+        ctxK.quadraticCurveTo(128, 62, 256, 72);
+        ctxK.lineTo(256, 128);
+        ctxK.lineTo(0, 128);
+        ctxK.fill();
+
+        // Right Relaxed Shinobi Eye
+        const ex = 181;
+        ctxK.fillStyle = '#ffffff';
+        ctxK.beginPath();
+        ctxK.ellipse(ex, 48, 20, 11, 0, 0, Math.PI * 2);
+        ctxK.fill();
+        ctxK.fillStyle = '#1e293b';
+        ctxK.beginPath();
+        ctxK.arc(ex, 48, 8, 0, Math.PI * 2);
+        ctxK.fill();
+        ctxK.fillStyle = '#ffffff';
+        ctxK.beginPath();
+        ctxK.arc(ex - 2, 45, 2.5, 0, Math.PI * 2);
+        ctxK.fill();
+        ctxK.strokeStyle = '#0f172a';
+        ctxK.lineWidth = 3.5;
+        ctxK.beginPath();
+        ctxK.moveTo(ex - 22, 45);
+        ctxK.lineTo(ex + 22, 47);
+        ctxK.stroke();
+      }
+
+      const cvTarget = document.getElementById('canvas-target');
+      const ctxT = cvTarget.getContext('2d');
+      ctxT.fillStyle = '#ffffff';
+      ctxT.fillRect(0, 0, 256, 256);
+      const rings = [
+        { r: 120, c: '#dc2626' },
+        { r: 96,  c: '#ffffff' },
+        { r: 72,  c: '#dc2626' },
+        { r: 48,  c: '#ffffff' },
+        { r: 24,  c: '#dc2626' }
+      ];
+      rings.forEach(ring => {
+        ctxT.beginPath();
+        ctxT.arc(128, 128, ring.r, 0, Math.PI * 2);
+        ctxT.fillStyle = ring.c;
+        ctxT.fill();
+      });
+    }
+    generateCanvasTextures();
+
+    /* 2. Web Audio Synthesizer */
+    class KonohaAudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.isMuted = false;
+        this.initialized = false;
+        this.windGain = null;
+        this.waterGain = null;
+      }
+
+      init() {
+        if (this.initialized) return;
+        try {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+          this.startWindAmbience();
+          this.startWaterAmbience();
+          this.scheduleBirdChirps();
+          this.initialized = true;
+        } catch (e) {
+          console.warn('Web Audio waiting for gesture:', e);
+        }
+      }
+
+      startWindAmbience() {
+        const bufferSize = this.ctx.sampleRate * 2;
+        const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = (Math.random() * 2 - 1) * 0.15;
+        }
+        const whiteNoise = this.ctx.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+        whiteNoise.loop = true;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(320, this.ctx.currentTime);
+
+        this.windGain = this.ctx.createGain();
+        this.windGain.gain.setValueAtTime(0.04, this.ctx.currentTime);
+
+        whiteNoise.connect(filter);
+        filter.connect(this.windGain);
+        this.windGain.connect(this.ctx.destination);
+        whiteNoise.start();
+      }
+
+      startWaterAmbience() {
+        const bufferSize = this.ctx.sampleRate * 2;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        let lastOut = 0.0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          data[i] = (lastOut + (0.02 * white)) / 1.02;
+          lastOut = data[i];
+          data[i] *= 0.35;
+        }
+        const waterSource = this.ctx.createBufferSource();
+        waterSource.buffer = buffer;
+        waterSource.loop = true;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(650, this.ctx.currentTime);
+        filter.Q.setValueAtTime(1.2, this.ctx.currentTime);
+
+        this.waterGain = this.ctx.createGain();
+        this.waterGain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+
+        waterSource.connect(filter);
+        filter.connect(this.waterGain);
+        this.waterGain.connect(this.ctx.destination);
+        waterSource.start();
+      }
+
+      scheduleBirdChirps() {
+        const chirp = () => {
+          if (!this.isMuted && this.ctx && this.ctx.state === 'running') {
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            const baseFreq = 2200 + Math.random() * 800;
+            osc.frequency.setValueAtTime(baseFreq, now);
+            osc.frequency.exponentialRampToValueAtTime(baseFreq + 600, now + 0.08);
+            osc.frequency.exponentialRampToValueAtTime(baseFreq - 200, now + 0.16);
+
+            gain.gain.setValueAtTime(0.02, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.22);
+          }
+          setTimeout(chirp, 4000 + Math.random() * 7000);
+        };
+        setTimeout(chirp, 2500);
+      }
+
+      playThrowSound() {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(650, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.14);
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      }
+
+      playShurikenSound() {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(1200, now);
+        osc.frequency.exponentialRampToValueAtTime(240, now + 0.16);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.17);
+      }
+
+      playJumpSound(isDouble = false) {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        const startF = isDouble ? 340 : 180;
+        const endF = isDouble ? 720 : 420;
+        osc.frequency.setValueAtTime(startF, now);
+        osc.frequency.exponentialRampToValueAtTime(endF, now + 0.18);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.19);
+      }
+
+      playLandSound() {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(110, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.12);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.13);
+      }
+
+      playDashSound() {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(750, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.22);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.23);
+      }
+
+      playTargetHitSound() {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+        const oscM = this.ctx.createOscillator();
+        const gainM = this.ctx.createGain();
+        oscM.type = 'sine';
+        oscM.frequency.setValueAtTime(1550, now);
+        oscM.frequency.exponentialRampToValueAtTime(350, now + 0.25);
+        gainM.gain.setValueAtTime(0.22, now);
+        gainM.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        oscM.connect(gainM);
+        gainM.connect(this.ctx.destination);
+        oscM.start(now);
+        oscM.stop(now + 0.26);
+
+        const oscW = this.ctx.createOscillator();
+        const gainW = this.ctx.createGain();
+        oscW.type = 'triangle';
+        oscW.frequency.setValueAtTime(160, now);
+        oscW.frequency.exponentialRampToValueAtTime(40, now + 0.12);
+        gainW.gain.setValueAtTime(0.2, now);
+        gainW.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        oscW.connect(gainW);
+        gainW.connect(this.ctx.destination);
+        oscW.start(now);
+        oscW.stop(now + 0.13);
+      }
+
+      playRicochetSound() {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(2400 + Math.random() * 800, now);
+        osc.frequency.exponentialRampToValueAtTime(800, now + 0.12);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.13);
+      }
+
+      playDialogueChime() {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99]; // C5, E5, G5 major triad
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+          gain.gain.setValueAtTime(0.12, now + idx * 0.06);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.3);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.06);
+          osc.stop(now + idx * 0.06 + 0.32);
+        });
+      }
+
+      playTaikoHit() {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(95, now);
+        osc.frequency.exponentialRampToValueAtTime(35, now + 0.45);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.46);
+      }
+
+      toggleMute() {
+        this.isMuted = !this.isMuted;
+        if (this.windGain) this.windGain.gain.setValueAtTime(this.isMuted ? 0 : 0.04, this.ctx.currentTime);
+        if (this.waterGain) this.waterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.03, this.ctx.currentTime);
+        return !this.isMuted;
+      }
+    }
+
+    const soundEngine = new KonohaAudioEngine();
+
+    window.addEventListener('click', () => soundEngine.init(), { once: true });
+    window.addEventListener('keydown', () => soundEngine.init(), { once: true });
+
+    document.getElementById('sound-btn').addEventListener('click', function() {
+      soundEngine.init();
+      const active = soundEngine.toggleMute();
+      this.textContent = active ? '🔊 Sound: ON' : '🔇 Sound: OFF';
+      this.style.background = active ? 'rgba(15, 23, 42, 0.85)' : '#475569';
+    });
+
+    /* ===================================================================
+       3. SOLID WORLD COLLIDERS (Discrete per-building boxes for 100% open traversability)
+       =================================================================== */
+    const SOLID_COLLIDERS = [
+      // Hokage Monument Back Wall
+      { minX: -80, minZ: -105, maxX: 80, maxZ: -72 },
+      // Hokage Administrative Tower Core
+      { minX: -11, minZ: -41, maxX: 11, maxZ: -19 },
+      // Main Entrance Gate Side Walls
+      { minX: -80, minZ: 68.5, maxX: -7, maxZ: 71.5 },
+      { minX: 7, minZ: 68.5, maxX: 80, maxZ: 71.5 },
+      // Gate Main Pillars
+      { minX: -12, minZ: 68, maxX: -8, maxZ: 72 },
+      { minX: 8, minZ: 68, maxX: 12, maxZ: 72 },
+
+      // East Street Row 1 Individual Houses
+      { minX: 10.8, minZ: 46.3, maxX: 19.2, maxZ: 53.7 },
+      { minX: 10.8, minZ: 34.3, maxX: 19.2, maxZ: 41.7 },
+      { minX: 10.8, minZ: 22.3, maxX: 19.2, maxZ: 29.7 },
+      { minX: 10.8, minZ: 8.3,  maxX: 19.2, maxZ: 15.7 },
+      { minX: 10.8, minZ: -5.7, maxX: 19.2, maxZ: 1.7 },
+      { minX: 10.8, minZ: -17.7, maxX: 19.2, maxZ: -10.3 },
+
+      // East Street Row 2 Individual Houses (Back row)
+      { minX: 23.8, minZ: 50.3, maxX: 32.2, maxZ: 57.7 },
+      { minX: 23.8, minZ: 38.3, maxX: 32.2, maxZ: 45.7 },
+      { minX: 23.8, minZ: 26.3, maxX: 32.2, maxZ: 33.7 },
+      { minX: 23.8, minZ: 12.3, maxX: 32.2, maxZ: 19.7 },
+      { minX: 23.8, minZ: -1.7, maxX: 32.2, maxZ: 5.7 },
+      { minX: 23.8, minZ: -13.7, maxX: 32.2, maxZ: -6.3 },
+
+      // West Street Row 1 Individual Houses
+      { minX: -19.2, minZ: 46.3, maxX: -10.8, maxZ: 53.7 },
+      { minX: -19.2, minZ: 34.3, maxX: -10.8, maxZ: 41.7 },
+      // Ichiraku Ramen Stall footprint
+      { minX: -18.5, minZ: 21.5, maxX: -9.5, maxZ: 28.5 },
+      { minX: -19.2, minZ: 8.3,  maxX: -10.8, maxZ: 15.7 },
+      { minX: -19.2, minZ: -5.7, maxX: -10.8, maxZ: 1.7 },
+      { minX: -19.2, minZ: -17.7, maxX: -10.8, maxZ: -10.3 },
+
+      // West Street Row 2 Individual Houses
+      { minX: -32.2, minZ: 50.3, maxX: -23.8, maxZ: 57.7 },
+      { minX: -32.2, minZ: 38.3, maxX: -23.8, maxZ: 45.7 },
+      { minX: -32.2, minZ: 12.3, maxX: -23.8, maxZ: 19.7 },
+      { minX: -32.2, minZ: -1.7, maxX: -23.8, maxZ: 5.7 },
+      { minX: -32.2, minZ: -13.7, maxX: -23.8, maxZ: -6.3 },
+
+      // Hokage Courtyard Annexes
+      { minX: -26.5, minZ: -32.5, maxX: -17.5, maxZ: -23.5 },
+      { minX: 17.5, minZ: -32.5, maxX: 26.5, maxZ: -23.5 }
+    ];
+
+    function getGroundElevationAt(x, z) {
+      // Arched River Bridge (smooth climb across the arch)
+      if (x >= 24 && x <= 40 && z >= -6 && z <= 26) {
+        const normalizedZ = (z - 10) / 10;
+        const arch = Math.max(0, 1 - (normalizedZ * normalizedZ));
+        return 1.2 + arch * 1.5;
+      }
+      // Hokage Plinth steps & courtyard terrace
+      const distHokage = Math.hypot(x, z - (-30));
+      if (distHokage < 19.5 && distHokage >= 11) {
+        if (distHokage < 16.5) return 1.9;
+        return 1.4;
+      }
+      // Training Ground Soft Dirt Elevation
+      const distTraining = Math.hypot(x - (-32), z);
+      if (distTraining < 16) {
+        return 0.05;
+      }
+      return 0.0;
+    }
+
+    function resolvePlayerCollisions(currX, currZ, targetX, targetZ, playerRadius = 0.45) {
+      let resX = targetX;
+      let resZ = targetZ;
+
+      // Axis 1: Test X displacement independently (allowing smooth sliding along Z)
+      for (let i = 0; i < SOLID_COLLIDERS.length; i++) {
+        const c = SOLID_COLLIDERS[i];
+        const minX = c.minX - playerRadius;
+        const maxX = c.maxX + playerRadius;
+        const minZ = c.minZ - playerRadius;
+        const maxZ = c.maxZ + playerRadius;
+
+        if (resX > minX && resX < maxX && currZ > minZ && currZ < maxZ) {
+          if (currX <= minX) resX = minX;
+          else if (currX >= maxX) resX = maxX;
+          else {
+            const d1 = Math.abs(resX - minX);
+            const d2 = Math.abs(resX - maxX);
+            resX = (d1 < d2) ? minX : maxX;
+          }
+        }
+      }
+
+      // Axis 2: Test Z displacement independently (allowing smooth sliding along X)
+      for (let i = 0; i < SOLID_COLLIDERS.length; i++) {
+        const c = SOLID_COLLIDERS[i];
+        const minX = c.minX - playerRadius;
+        const maxX = c.maxX + playerRadius;
+        const minZ = c.minZ - playerRadius;
+        const maxZ = c.maxZ + playerRadius;
+
+        if (resX > minX && resX < maxX && resZ > minZ && resZ < maxZ) {
+          if (currZ <= minZ) resZ = minZ;
+          else if (currZ >= maxZ) resZ = maxZ;
+          else {
+            const d1 = Math.abs(resZ - minZ);
+            const d2 = Math.abs(resZ - maxZ);
+            resZ = (d1 < d2) ? minZ : maxZ;
+          }
+        }
+      }
+
+      return { x: resX, z: resZ };
+    }
+
+    /* Global Physics & VR Settings */
+    const CONTROL_CONFIG = {
+      speed: 0.18,
+      sprintMultiplier: 2.1,
+      turnMode: 'snap',
+      turnAngle: 45,
+      smoothTurnSpeed: 2.2,
+      jumpForce: 9.0,
+      gravity: 22.0,
+      activeWeapon: 'kunai',
+      isCrouching: false
+    };
+
+    function updateVRSetting(key, val) {
+      CONTROL_CONFIG[key] = val;
+      const rig = document.getElementById('player-rig');
+      if (rig && rig.components['enhanced-shinobi-physics']) {
+        rig.components['enhanced-shinobi-physics'].data[key] = val;
+      }
+    }
+
+    function toggleSettingsModal() {
+      const modal = document.getElementById('settings-modal');
+      modal.classList.toggle('open');
+    }
+
+    function toggleNinjaWeapon() {
+      CONTROL_CONFIG.activeWeapon = (CONTROL_CONFIG.activeWeapon === 'kunai') ? 'shuriken' : 'kunai';
+      const btn = document.getElementById('weapon-btn');
+      if (btn) {
+        btn.textContent = CONTROL_CONFIG.activeWeapon === 'kunai' ? '🗡️ Weapon: KUNAI' : '⭐ Weapon: SHURIKEN';
+      }
+      const wristWpn = document.getElementById('vr-wrist-wpn');
+      if (wristWpn) {
+        wristWpn.setAttribute('value', `WEAPON: ${CONTROL_CONFIG.activeWeapon.toUpperCase()}`);
+      }
+      showVRNotification(`Equipped: ${CONTROL_CONFIG.activeWeapon.toUpperCase()}`);
+    }
+
+    /* ===================================================================
+       4. ENHANCED SHINOBI CONTROLLER (Crouching, Double Jump, Collisions)
+       =================================================================== */
+    AFRAME.registerComponent('enhanced-shinobi-physics', {
+      schema: {
+        speed: { type: 'number', default: 0.18 },
+        turnMode: { type: 'string', default: 'snap' },
+        turnAngle: { type: 'number', default: 45 },
+        smoothTurnSpeed: { type: 'number', default: 2.2 },
+        jumpForce: { type: 'number', default: 9.0 },
+        gravity: { type: 'number', default: 22.0 }
+      },
+      init: function() {
+        this.headCam = document.getElementById('head-camera');
+        this.canSnapTurn = true;
+        
+        this.velocityX = 0;
+        this.velocityZ = 0;
+        this.velocityY = 0;
+        this.isGrounded = true;
+        this.jumpsRemaining = 2;
+
+        this.keys = {};
+        window.addEventListener('keydown', (e) => {
+          this.keys[e.code] = true;
+
+          // Shinobi Jump / Double Jump (Space)
+          if (e.code === 'Space') {
+            e.preventDefault();
+            this.triggerJump();
+          }
+
+          // Shunshin Flash Dash (Q)
+          if (e.code === 'KeyQ') {
+            this.triggerShunshinDash();
+          }
+
+          // Switch Weapon (R)
+          if (e.code === 'KeyR') {
+            toggleNinjaWeapon();
+          }
+
+          // Crouch / Stealth (C or Control)
+          if (e.code === 'KeyC' || e.code === 'ControlLeft') {
+            this.toggleCrouch();
+          }
+
+          // Interact with nearest NPC (E)
+          if (e.code === 'KeyE') {
+            interactWithNearestNPC();
+          }
+
+          // Throw Weapon (F)
+          if (e.code === 'KeyF') {
+            desktopThrowWeapon();
+          }
+        });
+
+        window.addEventListener('keyup', (e) => {
+          this.keys[e.code] = false;
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+          const hint = document.getElementById('click-to-play');
+          if (document.pointerLockElement) {
+            if (hint) hint.style.opacity = '0';
+          } else {
+            if (hint) hint.style.opacity = '1';
+          }
+        });
+      },
+
+      toggleCrouch: function() {
+        CONTROL_CONFIG.isCrouching = !CONTROL_CONFIG.isCrouching;
+        const cam = this.headCam;
+        if (cam) {
+          cam.setAttribute('position', `0 ${CONTROL_CONFIG.isCrouching ? 0.9 : 1.6} 0`);
+        }
+        showVRNotification(CONTROL_CONFIG.isCrouching ? 'Stealth: Crouched' : 'Stealth: Standing');
+      },
+
+      triggerJump: function() {
+        if (this.jumpsRemaining > 0) {
+          const isDouble = (this.jumpsRemaining === 1);
+          this.velocityY = this.data.jumpForce * (isDouble ? 0.9 : 1.0);
+          this.isGrounded = false;
+          this.jumpsRemaining--;
+
+          soundEngine.playJumpSound(isDouble);
+          this.pulseHaptic('all', isDouble ? 0.6 : 0.4, 80);
+
+          if (isDouble) {
+            spawnChakraJumpVFX(this.el.getAttribute('position'));
+          }
+        }
+      },
+
+      triggerShunshinDash: function() {
+        soundEngine.playDashSound();
+        const vfx = document.getElementById('dash-vfx');
+        if (vfx) {
+          vfx.setAttribute('visible', 'true');
+          setTimeout(() => vfx.setAttribute('visible', 'false'), 250);
+        }
+
+        const rigPos = this.el.getAttribute('position');
+        const camRot = this.headCam ? this.headCam.getAttribute('rotation') : { y: 0 };
+        const rigRot = this.el.getAttribute('rotation') || { y: 0 };
+        const angle = (camRot.y + rigRot.y) * (Math.PI / 180);
+
+        const targetX = rigPos.x - Math.sin(angle) * 12;
+        const targetZ = rigPos.z - Math.cos(angle) * 12;
+
+        const resolved = resolvePlayerCollisions(rigPos.x, rigPos.z, targetX, targetZ, 0.6);
+        rigPos.x = Math.max(-125, Math.min(125, resolved.x));
+        rigPos.z = Math.max(-85, Math.min(110, resolved.z));
+
+        this.el.setAttribute('position', rigPos);
+        this.pulseHaptic('all', 0.8, 150);
+      },
+
+      pulseHaptic: function(hand = 'right', strength = 0.5, duration = 100) {
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (let i = 0; i < gamepads.length; i++) {
+          const gp = gamepads[i];
+          if (!gp || !gp.hapticActuators || !gp.hapticActuators.length) continue;
+          if (hand === 'all' || (hand === 'left' && gp.hand === 'left') || (hand === 'right' && gp.hand === 'right')) {
+            gp.hapticActuators[0].pulse(strength, duration);
+          }
+        }
+      },
+
+      tick: function(time, delta) {
+        const dt = Math.min(delta / 1000, 0.1);
+        const dtScale = delta / 16.6;
+
+        const rig = this.el;
+        const rigPos = rig.getAttribute('position');
+        const rigRot = rig.getAttribute('rotation') || { x: 0, y: 0, z: 0 };
+        const camRot = this.headCam ? this.headCam.getAttribute('rotation') : { y: 0 };
+
+        // 1. Read VR Controllers
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        let leftPad = null;
+        let rightPad = null;
+
+        for (let i = 0; i < gamepads.length; i++) {
+          const gp = gamepads[i];
+          if (!gp) continue;
+          if (gp.hand === 'left' || gp.id.toLowerCase().includes('left')) leftPad = gp;
+          if (gp.hand === 'right' || gp.id.toLowerCase().includes('right')) rightPad = gp;
+        }
+
+        let inputX = 0;
+        let inputZ = 0;
+        let isSprinting = false;
+
+        // VR Left Stick
+        if (leftPad && leftPad.axes && leftPad.axes.length >= 2) {
+          const stickX = leftPad.axes[2] !== undefined ? leftPad.axes[2] : leftPad.axes[0];
+          const stickY = leftPad.axes[3] !== undefined ? leftPad.axes[3] : leftPad.axes[1];
+          const deadzone = 0.12;
+
+          if (Math.abs(stickX) > deadzone) inputX += stickX;
+          if (Math.abs(stickY) > deadzone) inputZ += stickY;
+
+          if ((leftPad.buttons[3] && leftPad.buttons[3].pressed) || (leftPad.buttons[1] && leftPad.buttons[1].pressed)) {
+            isSprinting = true;
+          }
+
+          if (leftPad.buttons[4] && leftPad.buttons[4].pressed) {
+            this.triggerJump();
+          }
+        }
+
+        // Desktop WASD (S = Forward, W = Backward)
+        if (this.keys['KeyS'] || this.keys['ArrowUp']) inputZ -= 1;
+        if (this.keys['KeyW'] || this.keys['ArrowDown']) inputZ += 1;
+        if (this.keys['KeyA'] || this.keys['ArrowLeft']) inputX -= 1;
+        if (this.keys['KeyD'] || this.keys['ArrowRight']) inputX += 1;
+        if (this.keys['ShiftLeft'] || this.keys['ShiftRight']) isSprinting = true;
+
+        // Velocity computation with crouching modifier
+        const len = Math.hypot(inputX, inputZ);
+        let targetVelX = 0;
+        let targetVelZ = 0;
+
+        if (len > 0.05) {
+          const normX = inputX / Math.max(1, len);
+          const normZ = inputZ / Math.max(1, len);
+
+          const angle = (camRot.y + rigRot.y) * (Math.PI / 180);
+          const cos = Math.cos(angle);
+          const sin = Math.sin(angle);
+
+          const forwardX = -sin * normZ;
+          const forwardZ = -cos * normZ;
+          const strafeX = cos * normX;
+          const strafeZ = -sin * normX;
+
+          let speed = this.data.speed * (isSprinting ? CONTROL_CONFIG.sprintMultiplier : 1.0);
+          if (CONTROL_CONFIG.isCrouching) speed *= 0.5;
+
+          targetVelX = (forwardX + strafeX) * speed;
+          targetVelZ = (forwardZ + strafeZ) * speed;
+        }
+
+        const accelFactor = this.isGrounded ? 0.35 : 0.12;
+        this.velocityX += (targetVelX - this.velocityX) * accelFactor * dtScale;
+        this.velocityZ += (targetVelZ - this.velocityZ) * accelFactor * dtScale;
+
+        const nextX = rigPos.x + this.velocityX * dtScale;
+        const nextZ = rigPos.z + this.velocityZ * dtScale;
+
+        const resolved = resolvePlayerCollisions(rigPos.x, rigPos.z, nextX, nextZ, 0.45);
+        rigPos.x = Math.max(-125, Math.min(125, resolved.x));
+        rigPos.z = Math.max(-85, Math.min(110, resolved.z));
+
+        // VR Right Stick Turning & Jump
+        if (rightPad) {
+          if (rightPad.buttons[4] && rightPad.buttons[4].pressed) {
+            this.triggerJump();
+          }
+
+          if (rightPad.axes && rightPad.axes.length >= 2) {
+            const rx = rightPad.axes[2] !== undefined ? rightPad.axes[2] : rightPad.axes[0];
+
+            if (CONTROL_CONFIG.turnMode === 'snap') {
+              if (Math.abs(rx) > 0.65) {
+                if (this.canSnapTurn) {
+                  const dir = rx > 0 ? -1 : 1;
+                  rigRot.y += dir * CONTROL_CONFIG.turnAngle;
+                  rig.setAttribute('rotation', rigRot);
+                  this.canSnapTurn = false;
+                  this.pulseHaptic('right', 0.25, 40);
+                }
+              } else if (Math.abs(rx) < 0.25) {
+                this.canSnapTurn = true;
+              }
+            } else {
+              if (Math.abs(rx) > 0.15) {
+                rigRot.y -= rx * CONTROL_CONFIG.smoothTurnSpeed * dtScale;
+                rig.setAttribute('rotation', rigRot);
+              }
+            }
+          }
+        }
+
+        // Elevation Physics & Gravity
+        const currentGroundY = getGroundElevationAt(rigPos.x, rigPos.z);
+
+        if (!this.isGrounded) {
+          this.velocityY -= CONTROL_CONFIG.gravity * dt;
+          rigPos.y += this.velocityY * dt;
+
+          if (rigPos.y <= currentGroundY) {
+            rigPos.y = currentGroundY;
+            this.velocityY = 0;
+            this.isGrounded = true;
+            this.jumpsRemaining = 2;
+            soundEngine.playLandSound();
+            this.pulseHaptic('all', 0.3, 50);
+          }
+        } else {
+          if (Math.abs(rigPos.y - currentGroundY) > 0.05) {
+            rigPos.y += (currentGroundY - rigPos.y) * 0.4 * dtScale;
+          } else {
+            rigPos.y = currentGroundY;
+          }
+
+          if (rigPos.y > currentGroundY + 0.3) {
+            this.isGrounded = false;
+          }
+        }
+
+        rig.setAttribute('position', rigPos);
+
+        checkPlayerZone(rigPos.x, rigPos.z);
+        checkNearbyNPC(rigPos.x, rigPos.z);
+      }
+    });
+
+    function spawnChakraJumpVFX(pos) {
+      const container = document.getElementById('physics-vfx-container');
+      const ring = document.createElement('a-ring');
+      ring.setAttribute('position', `${pos.x} ${pos.y + 0.1} ${pos.z}`);
+      ring.setAttribute('rotation', '-90 0 0');
+      ring.setAttribute('radius-inner', '0.2');
+      ring.setAttribute('radius-outer', '0.8');
+      ring.setAttribute('color', '#38bdf8');
+      ring.setAttribute('material', 'shader: flat; transparent: true; opacity: 0.9;');
+      ring.setAttribute('animation', 'property: scale; to: 3 3 3; dur: 220; easing: easeOutQuad;');
+      ring.setAttribute('animation__fade', 'property: material.opacity; to: 0; dur: 220; easing: easeOutQuad;');
+      container.appendChild(ring);
+      setTimeout(() => ring.remove(), 250);
+    }
+
+    /* ===================================================================
+       5. DUAL VR WEAPON THROWING & BALLISTICS
+       =================================================================== */
+    AFRAME.registerComponent('kunai-thrower', {
+      schema: { hand: { type: 'string', default: 'right' } },
+      init: function() {
+        const el = this.el;
+        el.addEventListener('triggerdown', () => {
+          soundEngine.init();
+          this.throwWeaponVR();
+        });
+        el.addEventListener('gripdown', () => {
+          soundEngine.init();
+          this.throwWeaponVR();
+        });
+      },
+      throwWeaponVR: function() {
+        const controllerObj = this.el.object3D;
+        const worldPos = new THREE.Vector3();
+        const worldDir = new THREE.Vector3(0, 0, -1);
+        controllerObj.getWorldPosition(worldPos);
+        controllerObj.getWorldDirection(worldDir);
+        worldDir.negate();
+
+        const rig = document.getElementById('player-rig');
+        if (rig && rig.components['enhanced-shinobi-physics']) {
+          rig.components['enhanced-shinobi-physics'].pulseHaptic(this.data.hand, 0.6, 90);
+        }
+
+        spawnPhysicsProjectile(worldPos, worldDir, CONTROL_CONFIG.activeWeapon);
+      }
+    });
+
+    function spawnPhysicsProjectile(originVec, dirVec, weaponType = 'kunai') {
+      if (weaponType === 'shuriken') soundEngine.playShurikenSound();
+      else soundEngine.playThrowSound();
+
+      const scene = document.querySelector('a-scene');
+      const proj = document.createElement('a-entity');
+      proj.setAttribute('position', `${originVec.x} ${originVec.y} ${originVec.z}`);
+
+      if (weaponType === 'shuriken') {
+        const star = document.createElement('a-entity');
+        star.setAttribute('scale', '0.6 0.6 0.6');
+        const b1 = document.createElement('a-box');
+        b1.setAttribute('width', '0.35'); b1.setAttribute('height', '0.015'); b1.setAttribute('depth', '0.08');
+        b1.setAttribute('color', '#334155'); b1.setAttribute('material', 'metalness: 0.8; roughness: 0.2;');
+        const b2 = document.createElement('a-box');
+        b2.setAttribute('width', '0.08'); b2.setAttribute('height', '0.015'); b2.setAttribute('depth', '0.35');
+        b2.setAttribute('color', '#334155'); b2.setAttribute('material', 'metalness: 0.8; roughness: 0.2;');
+        const center = document.createElement('a-cylinder');
+        center.setAttribute('radius', '0.04'); center.setAttribute('height', '0.02'); center.setAttribute('color', '#e2e8f0');
+        star.appendChild(b1); star.appendChild(b2); star.appendChild(center);
+        proj.appendChild(star);
+      } else {
+        const model = document.createElement('a-entity');
+        model.setAttribute('rotation', '90 0 0');
+        model.setAttribute('scale', '1.4 1.4 1.4');
+        const blade = document.createElement('a-cone');
+        blade.setAttribute('radius-bottom', '0.035'); blade.setAttribute('radius-top', '0'); blade.setAttribute('height', '0.22');
+        blade.setAttribute('color', '#1e293b'); blade.setAttribute('material', 'metalness: 0.8; roughness: 0.2;');
+        const handle = document.createElement('a-cylinder');
+        handle.setAttribute('position', '0 -0.16 0'); handle.setAttribute('radius', '0.012'); handle.setAttribute('height', '0.14');
+        handle.setAttribute('color', '#ffffff');
+        const ring = document.createElement('a-torus');
+        ring.setAttribute('position', '0 -0.24 0'); ring.setAttribute('radius', '0.028'); ring.setAttribute('radius-tubular', '0.006');
+        ring.setAttribute('color', '#1e293b');
+        model.appendChild(blade); model.appendChild(handle); model.appendChild(ring);
+        proj.appendChild(model);
+      }
+
+      scene.appendChild(proj);
+
+      const speed = weaponType === 'shuriken' ? 36 : 30;
+      const velocity = dirVec.clone().normalize().multiplyScalar(speed);
+      let aliveTime = 0;
+      const maxLife = 4.0;
+      const currentPos = originVec.clone();
+      let hasCollided = false;
+
+      const interval = setInterval(() => {
+        if (hasCollided) return;
+
+        const dt = 0.02;
+        aliveTime += dt;
+
+        velocity.y -= 14.0 * dt;
+        velocity.multiplyScalar(0.996);
+
+        currentPos.addScaledVector(velocity, dt);
+        proj.setAttribute('position', `${currentPos.x} ${currentPos.y} ${currentPos.z}`);
+
+        if (weaponType === 'shuriken') {
+          proj.object3D.rotation.y += 0.45;
+        } else {
+          const rotTarget = currentPos.clone().add(velocity);
+          proj.object3D.lookAt(rotTarget.x, rotTarget.y, rotTarget.z);
+        }
+
+        const targets = document.querySelectorAll('.target-obj');
+        for (let i = 0; i < targets.length; i++) {
+          const t = targets[i];
+          const tPos = new THREE.Vector3();
+          t.object3D.getWorldPosition(tPos);
+
+          if (currentPos.distanceTo(tPos) < 1.45) {
+            hasCollided = true;
+            clearInterval(interval);
+            soundEngine.playTargetHitSound();
+            const pts = parseInt(t.getAttribute('target-hit-box').points) || 100;
+            updateScore(pts);
+            showHitSparkEffect(currentPos);
+            triggerHitmarker();
+            showVRNotification(`🎯 TARGET HIT! +${pts} PTS`);
+
+            proj.setAttribute('animation', 'property: position; to: ' + `${currentPos.x} ${currentPos.y + 0.03} ${currentPos.z}` + '; dir: alternate; dur: 50; loop: 4;');
+            setTimeout(() => proj.remove(), 2500);
+            return;
+          }
+        }
+
+        // Check if hitting NPC (harmless spark deflect)
+        const npcs = document.querySelectorAll('.npc-entity');
+        for (let i = 0; i < npcs.length; i++) {
+          const npc = npcs[i];
+          const nPos = new THREE.Vector3();
+          npc.object3D.getWorldPosition(nPos);
+          if (currentPos.distanceTo(nPos) < 1.2) {
+            hasCollided = true;
+            clearInterval(interval);
+            soundEngine.playRicochetSound();
+            spawnRicochetSparks(currentPos, velocity);
+            showVRNotification(`Shinobi Deflected Weapon!`);
+            proj.remove();
+            return;
+          }
+        }
+
+        for (let i = 0; i < SOLID_COLLIDERS.length; i++) {
+          const c = SOLID_COLLIDERS[i];
+          if (currentPos.x >= c.minX && currentPos.x <= c.maxX && currentPos.z >= c.minZ && currentPos.z <= c.maxZ && currentPos.y > 0.2 && currentPos.y < 12) {
+            hasCollided = true;
+            clearInterval(interval);
+            soundEngine.playRicochetSound();
+            spawnRicochetSparks(currentPos, velocity);
+
+            velocity.x = -velocity.x * 0.35;
+            velocity.z = -velocity.z * 0.35;
+            velocity.y = Math.abs(velocity.y) * 0.4;
+
+            let bounceTime = 0;
+            const bounceTimer = setInterval(() => {
+              bounceTime += 0.025;
+              velocity.y -= 18.0 * 0.025;
+              currentPos.addScaledVector(velocity, 0.025);
+              proj.setAttribute('position', `${currentPos.x} ${currentPos.y} ${currentPos.z}`);
+              if (currentPos.y <= 0.1 || bounceTime > 1.2) {
+                clearInterval(bounceTimer);
+                proj.remove();
+              }
+            }, 25);
+            return;
+          }
+        }
+
+        const groundHeight = getGroundElevationAt(currentPos.x, currentPos.z);
+        if (currentPos.y <= groundHeight + 0.05 || aliveTime > maxLife) {
+          hasCollided = true;
+          clearInterval(interval);
+          proj.remove();
+        }
+      }, 20);
+    }
+
+    function spawnRicochetSparks(pos, incVel) {
+      const container = document.getElementById('physics-vfx-container');
+      const count = 8;
+
+      for (let i = 0; i < count; i++) {
+        const spark = document.createElement('a-sphere');
+        spark.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
+        spark.setAttribute('radius', '0.04');
+        spark.setAttribute('color', '#fbbf24');
+        spark.setAttribute('material', 'emissive: #f59e0b; emissiveIntensity: 2; shader: flat;');
+        container.appendChild(spark);
+
+        const sparkVel = new THREE.Vector3(
+          -incVel.x * 0.2 + (Math.random() - 0.5) * 6,
+          Math.random() * 5 + 2,
+          -incVel.z * 0.2 + (Math.random() - 0.5) * 6
+        );
+
+        let curP = pos.clone();
+        let life = 0;
+
+        const spTimer = setInterval(() => {
+          life += 0.02;
+          sparkVel.y -= 22 * 0.02;
+          curP.addScaledVector(sparkVel, 0.02);
+          spark.setAttribute('position', `${curP.x} ${curP.y} ${curP.z}`);
+
+          if (curP.y < 0.1 || life > 0.4) {
+            clearInterval(spTimer);
+            spark.remove();
+          }
+        }, 20);
+      }
+    }
+
+    function showHitSparkEffect(pos) {
+      const container = document.getElementById('physics-vfx-container');
+      const burst = document.createElement('a-sphere');
+      burst.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
+      burst.setAttribute('radius', '0.35');
+      burst.setAttribute('color', '#fde047');
+      burst.setAttribute('material', 'emissive: #f59e0b; emissiveIntensity: 1; transparent: true;');
+      burst.setAttribute('animation', 'property: scale; to: 4 4 4; dur: 250; easing: easeOutQuad;');
+      burst.setAttribute('animation__fade', 'property: material.opacity; to: 0; dur: 250; easing: easeOutQuad;');
+      container.appendChild(burst);
+      setTimeout(() => burst.remove(), 300);
+    }
+
+    function triggerHitmarker() {
+      const hm = document.getElementById('hitmarker');
+      if (hm) {
+        hm.classList.add('active');
+        setTimeout(() => hm.classList.remove('active'), 180);
+      }
+    }
+
+    function desktopThrowWeapon() {
+      const cam = document.getElementById('head-camera');
+      if (!cam) return;
+      const worldPos = new THREE.Vector3();
+      const worldDir = new THREE.Vector3();
+      cam.object3D.getWorldPosition(worldPos);
+      cam.object3D.getWorldDirection(worldDir);
+      worldDir.negate();
+      worldPos.y -= 0.2;
+      spawnPhysicsProjectile(worldPos, worldDir, CONTROL_CONFIG.activeWeapon);
+    }
+
+    window.addEventListener('click', (e) => {
+      if (e.target.closest('#hud-overlay') || e.target.closest('#settings-modal') || e.target.closest('#dialogue-box') || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+      desktopThrowWeapon();
+    });
+
+    /* ===================================================================
+       6. 3D PROCEDURAL ANIME NPC BUILDERS & DIALOGUE SYSTEM
+       =================================================================== */
+    const NPC_DATA = [
+      {
+        id: 'naruto',
+        name: 'Naruto Uzumaki',
+        avatar: '🍜',
+        x: -14, y: 0.6, z: 27.5, rotY: 0,
+        dialogues: [
+          '"Believe it! Teuchi\'s extra-large Miso Chashu pork ramen is the greatest food in the world!"',
+          '"One day I\'m gonna become the greatest Hokage, and everyone will acknowledge me, dattebayo!"',
+          '"Hey! Want to train together at Field #7? Kakashi-sensei said there\'s no shortcuts in ninjutsu!"'
+        ]
+      },
+      {
+        id: 'kakashi',
+        name: 'Kakashi Hatake',
+        avatar: '📖',
+        x: -28, y: 0, z: -5, rotY: 135,
+        dialogues: [
+          '"Those who break the rules are scum... but those who abandon their comrades are worse than scum."',
+          '"Sorry I\'m late, a black cat crossed my path so I had to take the long way..."',
+          '"Keep practicing your kunai aim on those targets. A shinobi must always keep their edge sharp."'
+        ]
+      },
+      {
+        id: 'sasuke',
+        name: 'Sasuke Uchiha',
+        avatar: '⚡',
+        x: 31, y: 2.6, z: 9, rotY: -90,
+        dialogues: [
+          '"Hmph... You\'re wasting time standing around. You need more hatred... or at least more chakra control."',
+          '"My name is Sasuke Uchiha. I hate a lot of things, and I don\'t particularly like anything."',
+          '"Don\'t get in my way. I have an ambition I must fulfill."'
+        ]
+      },
+      {
+        id: 'sakura',
+        name: 'Sakura Haruno',
+        avatar: '🌸',
+        x: 10, y: 0, z: 24, rotY: -90,
+        dialogues: [
+          '"Cha! The cherry blossoms look beautiful today in Konoha! Make sure you stay stocked up on medical supplies."',
+          '"Lady Tsunade\'s chakra control training is intense, but a medical ninja must never give up!"',
+          '"Have you seen Naruto? He\'s probably slacking off eating ramen at Ichiraku again..."'
+        ]
+      },
+      {
+        id: 'tsunade',
+        name: 'Lady Tsunade (5th Hokage)',
+        avatar: '🍶',
+        x: 0, y: 1.9, z: -14, rotY: 180,
+        dialogues: [
+          '"As the Fifth Hokage, it is my duty to protect every single leaf in this village with my life!"',
+          '"Shizune brought another stack of S-Rank mission requests... Sometimes I need a break with some sake."',
+          '"Shinobi of the Leaf! Carry the Will of Fire in your heart and hone your skills daily!"'
+        ]
+      },
+      {
+        id: 'izumo',
+        name: 'Izumo Kamizuki (Gate Guard)',
+        avatar: '⛩️',
+        x: -4.5, y: 0, z: 66, rotY: 0,
+        dialogues: [
+          '"Halt! State your business in Konohagakure. Present your ninja identification scroll."',
+          '"Kotetsu and I have guarded this gate for years. No rogues enter past the Great Leaf Arch!"'
+        ]
+      },
+      {
+        id: 'kotetsu',
+        name: 'Kotetsu Hagane (Gate Guard)',
+        avatar: '⛩️',
+        x: 4.5, y: 0, z: 66, rotY: 0,
+        dialogues: [
+          '"Welcome back to the Leaf Village! All clear for entry."',
+          '"Make sure you report to the Hokage Tower if you\'re returning from an out-of-village mission."'
+        ]
+      }
+    ];
+
+    let activeDialogueNPC = null;
+    let dialogueIndex = 0;
+
+    // Highly Detailed Procedural Anime 3D Character Model Builders
+    function generateNPCModels() {
+      const container = document.getElementById('village-npcs');
+
+      NPC_DATA.forEach(npc => {
+        const npcGroup = document.createElement('a-entity');
+        npcGroup.setAttribute('id', `npc-${npc.id}`);
+        npcGroup.setAttribute('class', 'clickable npc-entity');
+        npcGroup.setAttribute('position', `${npc.x} ${npc.y} ${npc.z}`);
+        npcGroup.setAttribute('rotation', `0 ${npc.rotY} 0`);
+        npcGroup.onclick = () => openNPCDialogue(npc.id);
+
+        // Nameplate Floating Billboard
+        const namePlate = document.createElement('a-entity');
+        namePlate.setAttribute('position', '0 2.3 0');
+        const bg = document.createElement('a-plane');
+        bg.setAttribute('width', '1.6'); bg.setAttribute('height', '0.32');
+        bg.setAttribute('color', '#0f172a'); bg.setAttribute('opacity', '0.88');
+        bg.setAttribute('material', 'transparent: true;');
+        const txt = document.createElement('a-text');
+        txt.setAttribute('value', `${npc.avatar} ${npc.name}`);
+        txt.setAttribute('align', 'center'); txt.setAttribute('width', '2.2');
+        txt.setAttribute('color', '#fde047'); txt.setAttribute('position', '0 0 0.01');
+        namePlate.appendChild(bg); namePlate.appendChild(txt);
+        namePlate.setAttribute('look-at', '#head-camera');
+        npcGroup.appendChild(namePlate);
+
+        // Character Specific Stylized Anime Models
+        if (npc.id === 'naruto') {
+          buildNarutoModel(npcGroup);
+        } else if (npc.id === 'kakashi') {
+          buildKakashiModel(npcGroup);
+        } else if (npc.id === 'sasuke') {
+          buildSasukeModel(npcGroup);
+        } else if (npc.id === 'sakura') {
+          buildSakuraModel(npcGroup);
+        } else if (npc.id === 'tsunade') {
+          buildTsunadeModel(npcGroup);
+        } else if (npc.id === 'izumo') {
+          buildGuardModel(npcGroup, 'Izumo', false);
+        } else if (npc.id === 'kotetsu') {
+          buildGuardModel(npcGroup, 'Kotetsu', true);
+        }
+
+        // Idle Breathing Animation
+        npcGroup.setAttribute('animation', 'property: position; to: ' + `${npc.x} ${npc.y + 0.035} ${npc.z}` + '; dir: alternate; loop: true; dur: 2400; easing: easeInOutSine;');
+
+        container.appendChild(npcGroup);
+      });
+
+      // 2 Patrolling Anbu Ninjas
+      createPatrollingAnbu(5, 0, 45, 1);
+      createPatrollingAnbu(-5, 0, 10, -1);
+    }
+
+    // Helper: Build Naruto Uzumaki Model
+    function buildNarutoModel(group) {
+      // 1. Torso & Tracksuit Jacket
+      const torso = document.createElement('a-box');
+      torso.setAttribute('position', '0 1 0'); torso.setAttribute('width', '0.54'); torso.setAttribute('height', '0.72'); torso.setAttribute('depth', '0.34');
+      torso.setAttribute('color', '#ea580c'); // Signature Bright Orange
+      torso.setAttribute('shadow', 'cast: true;');
+
+      // Front Black Zipper Line
+      const zipper = document.createElement('a-box');
+      zipper.setAttribute('position', '0 0 0.175'); zipper.setAttribute('width', '0.04'); zipper.setAttribute('height', '0.72'); zipper.setAttribute('depth', '0.01');
+      zipper.setAttribute('color', '#1e293b');
+      torso.appendChild(zipper);
+
+      // Navy Blue Shoulder Yokes
+      const yoke = document.createElement('a-box');
+      yoke.setAttribute('position', '0 0.26 0'); yoke.setAttribute('width', '0.55'); yoke.setAttribute('height', '0.22'); yoke.setAttribute('depth', '0.35');
+      yoke.setAttribute('color', '#1e3a8a');
+      torso.appendChild(yoke);
+
+      // White Sherpa High Fleece Collar
+      const collar = document.createElement('a-torus');
+      collar.setAttribute('position', '0 0.38 0'); collar.setAttribute('rotation', '90 0 0'); collar.setAttribute('radius', '0.2'); collar.setAttribute('radius-tubular', '0.045');
+      collar.setAttribute('color', '#ffffff'); collar.setAttribute('material', 'roughness: 0.9;');
+      torso.appendChild(collar);
+
+      // Back Uzumaki Clan Red Spiral Crest
+      const uzuCrest = document.createElement('a-cylinder');
+      uzuCrest.setAttribute('position', '0 0.05 -0.175'); uzuCrest.setAttribute('rotation', '90 0 0'); uzuCrest.setAttribute('radius', '0.13'); uzuCrest.setAttribute('height', '0.01');
+      uzuCrest.setAttribute('color', '#ffffff'); uzuCrest.setAttribute('material', 'src: #canvas-uzumaki; roughness: 0.5;');
+      torso.appendChild(uzuCrest);
+
+      // Left Arm White Armband with Red Swirl
+      const armBand = document.createElement('a-cylinder');
+      armBand.setAttribute('position', '-0.3 1.15 0'); armBand.setAttribute('radius', '0.08'); armBand.setAttribute('height', '0.12');
+      armBand.setAttribute('color', '#ffffff');
+      const armBandSwirl = document.createElement('a-cylinder');
+      armBandSwirl.setAttribute('position', '-0.075 0 0'); armBandSwirl.setAttribute('rotation', '0 0 90'); armBandSwirl.setAttribute('radius', '0.035'); armBandSwirl.setAttribute('height', '0.01');
+      armBandSwirl.setAttribute('color', '#dc2626');
+      armBand.appendChild(armBandSwirl);
+      group.appendChild(armBand);
+
+      // Waist Shinobi Pouches
+      const waistPouch = document.createElement('a-box');
+      waistPouch.setAttribute('position', '0.24 -0.28 -0.12'); waistPouch.setAttribute('width', '0.12'); waistPouch.setAttribute('height', '0.14'); waistPouch.setAttribute('depth', '0.1');
+      waistPouch.setAttribute('color', '#78350f');
+      torso.appendChild(waistPouch);
+      group.appendChild(torso);
+
+      // 2. Segmented Arms & Clenched Hands
+      const armL = document.createElement('a-cylinder');
+      armL.setAttribute('position', '-0.3 0.95 0'); armL.setAttribute('radius', '0.07'); armL.setAttribute('height', '0.45'); armL.setAttribute('color', '#ea580c');
+      const handL = document.createElement('a-sphere');
+      handL.setAttribute('position', '0 -0.26 0'); handL.setAttribute('radius', '0.065'); handL.setAttribute('color', '#fed7aa');
+      armL.appendChild(handL);
+
+      const armR = document.createElement('a-cylinder');
+      armR.setAttribute('position', '0.3 0.95 0'); armR.setAttribute('radius', '0.07'); armR.setAttribute('height', '0.45'); armR.setAttribute('color', '#ea580c');
+      const handR = document.createElement('a-sphere');
+      handR.setAttribute('position', '0 -0.26 0'); handR.setAttribute('radius', '0.065'); handR.setAttribute('color', '#fed7aa');
+      armR.appendChild(handR);
+      group.appendChild(armL); group.appendChild(armR);
+
+      // 3. Orange Shinobi Pants & Holster
+      const legL = document.createElement('a-cylinder');
+      legL.setAttribute('position', '-0.15 0.35 0'); legL.setAttribute('radius', '0.11'); legL.setAttribute('height', '0.7'); legL.setAttribute('color', '#ea580c');
+      
+      const legR = document.createElement('a-cylinder');
+      legR.setAttribute('position', '0.15 0.35 0'); legR.setAttribute('radius', '0.11'); legR.setAttribute('height', '0.7'); legR.setAttribute('color', '#ea580c');
+      
+      // Right Thigh White Bandages & Dark Blue Weapon Holster
+      const bandageWrap = document.createElement('a-cylinder');
+      bandageWrap.setAttribute('position', '0 0.1 0'); bandageWrap.setAttribute('radius', '0.12'); bandageWrap.setAttribute('height', '0.18'); bandageWrap.setAttribute('color', '#f8fafc');
+      const kunaiHolster = document.createElement('a-box');
+      kunaiHolster.setAttribute('position', '0.1 0.1 0'); kunaiHolster.setAttribute('width', '0.06'); kunaiHolster.setAttribute('height', '0.12'); kunaiHolster.setAttribute('depth', '0.08'); kunaiHolster.setAttribute('color', '#1e3a8a');
+      legR.appendChild(bandageWrap); legR.appendChild(kunaiHolster);
+      group.appendChild(legL); group.appendChild(legR);
+
+      // Blue Ninja Sandals with Exposed Toes
+      const footL = document.createElement('a-box'); footL.setAttribute('position', '-0.15 0.04 0.05'); footL.setAttribute('width', '0.12'); footL.setAttribute('height', '0.08'); footL.setAttribute('depth', '0.22'); footL.setAttribute('color', '#1e3a8a');
+      const toesL = document.createElement('a-box'); toesL.setAttribute('position', '0 0.01 0.08'); toesL.setAttribute('width', '0.1'); toesL.setAttribute('height', '0.05'); toesL.setAttribute('depth', '0.06'); toesL.setAttribute('color', '#fed7aa'); footL.appendChild(toesL);
+      
+      const footR = document.createElement('a-box'); footR.setAttribute('position', '0.15 0.04 0.05'); footR.setAttribute('width', '0.12'); footR.setAttribute('height', '0.08'); footR.setAttribute('depth', '0.22'); footR.setAttribute('color', '#1e3a8a');
+      const toesR = document.createElement('a-box'); toesR.setAttribute('position', '0 0.01 0.08'); toesR.setAttribute('width', '0.1'); toesR.setAttribute('height', '0.05'); toesR.setAttribute('depth', '0.06'); toesR.setAttribute('color', '#fed7aa'); footR.appendChild(toesR);
+      group.appendChild(footL); group.appendChild(footR);
+
+      // 4. Head with Anime Eyes, Whiskers & Facial Mesh
+      const head = document.createElement('a-sphere');
+      head.setAttribute('position', '0 1.62 0'); head.setAttribute('radius', '0.22'); head.setAttribute('color', '#fed7aa');
+
+      // Front Face Decal with Sparkling Anime Eyes & Whiskers
+      const faceDecal = document.createElement('a-plane');
+      faceDecal.setAttribute('position', '0 -0.02 0.215'); faceDecal.setAttribute('width', '0.34'); faceDecal.setAttribute('height', '0.22');
+      faceDecal.setAttribute('material', 'src: #canvas-eyes-naruto; transparent: true; roughness: 0.6;');
+      head.appendChild(faceDecal);
+
+      // 5. Leaf Shinobi Headband with Engraved Metal Plate & Hanging Ribbons
+      const headband = document.createElement('a-cylinder');
+      headband.setAttribute('position', '0 0.09 0'); headband.setAttribute('radius', '0.23'); headband.setAttribute('height', '0.08'); headband.setAttribute('color', '#1e3a8a');
+      
+      const plate = document.createElement('a-cylinder');
+      plate.setAttribute('position', '0 0 0.23'); plate.setAttribute('rotation', '90 0 0'); plate.setAttribute('radius', '0.08'); plate.setAttribute('height', '0.01');
+      plate.setAttribute('color', '#cbd5e1'); plate.setAttribute('material', 'src: #canvas-headband; metalness: 0.85; roughness: 0.2;');
+      headband.appendChild(plate);
+
+      // Headband Knot & Dangling Tail Ribbons
+      const knot = document.createElement('a-sphere');
+      knot.setAttribute('position', '0 0 -0.23'); knot.setAttribute('radius', '0.04'); knot.setAttribute('color', '#1e3a8a');
+      const ribbon1 = document.createElement('a-box');
+      ribbon1.setAttribute('position', '-0.04 -0.12 -0.25'); ribbon1.setAttribute('rotation', '15 0 -15'); ribbon1.setAttribute('width', '0.04'); ribbon1.setAttribute('height', '0.22'); ribbon1.setAttribute('depth', '0.01'); ribbon1.setAttribute('color', '#1e3a8a');
+      const ribbon2 = document.createElement('a-box');
+      ribbon2.setAttribute('position', '0.04 -0.14 -0.25'); ribbon2.setAttribute('rotation', '20 0 10'); ribbon2.setAttribute('width', '0.04'); ribbon2.setAttribute('height', '0.26'); ribbon2.setAttribute('depth', '0.01'); ribbon2.setAttribute('color', '#1e3a8a');
+      headband.appendChild(knot); headband.appendChild(ribbon1); headband.appendChild(ribbon2);
+      head.appendChild(headband);
+
+      // 6. Spiky Golden Blonde Anime Hair Spikes (12 Layered Angles)
+      const hairSpikes = [
+        { x: 0, y: 0.24, z: 0, rx: 0, rz: 0, h: 0.35, r: 0.22 },
+        { x: -0.12, y: 0.22, z: 0.08, rx: -15, rz: 35, h: 0.28, r: 0.14 },
+        { x: 0.12, y: 0.22, z: 0.08, rx: -15, rz: -35, h: 0.28, r: 0.14 },
+        { x: 0, y: 0.23, z: -0.12, rx: 25, rz: 0, h: 0.3, r: 0.16 },
+        { x: -0.14, y: 0.18, z: -0.08, rx: 20, rz: 40, h: 0.26, r: 0.14 },
+        { x: 0.14, y: 0.18, z: -0.08, rx: 20, rz: -40, h: 0.26, r: 0.14 },
+        { x: -0.08, y: 0.25, z: 0.08, rx: -10, rz: 20, h: 0.32, r: 0.15 },
+        { x: 0.08, y: 0.25, z: 0.08, rx: -10, rz: -20, h: 0.32, r: 0.15 }
+      ];
+      hairSpikes.forEach(s => {
+        const spike = document.createElement('a-cone');
+        spike.setAttribute('position', `${s.x} ${s.y} ${s.z}`);
+        spike.setAttribute('rotation', `${s.rx} 0 ${s.rz}`);
+        spike.setAttribute('radius-bottom', s.r); spike.setAttribute('radius-top', '0.01'); spike.setAttribute('height', s.h);
+        spike.setAttribute('color', '#fbbf24'); // Bright Anime Blonde
+        spike.setAttribute('material', 'roughness: 0.65;');
+        head.appendChild(spike);
+      });
+      group.appendChild(head);
+    }
+
+    // Helper: Build Kakashi Hatake Model
+    function buildKakashiModel(group) {
+      // 1. Dark Navy Undershirt with Jonin Tactical Flak Vest
+      const torso = document.createElement('a-box');
+      torso.setAttribute('position', '0 1 0'); torso.setAttribute('width', '0.54'); torso.setAttribute('height', '0.74'); torso.setAttribute('depth', '0.35');
+      torso.setAttribute('color', '#15803d'); // Jonin Tactical Vest Green
+      torso.setAttribute('shadow', 'cast: true;');
+
+      // High Padded Vest Collar
+      const vCollar = document.createElement('a-box');
+      vCollar.setAttribute('position', '0 0.4 0'); vCollar.setAttribute('width', '0.46'); vCollar.setAttribute('height', '0.12'); vCollar.setAttribute('depth', '0.36');
+      vCollar.setAttribute('color', '#166534');
+      torso.appendChild(vCollar);
+
+      // 4 Tactical Flak Ammo Pouches with Flaps
+      const p1 = document.createElement('a-box'); p1.setAttribute('position', '-0.15 0.08 0.19'); p1.setAttribute('width', '0.13'); p1.setAttribute('height', '0.13'); p1.setAttribute('depth', '0.05'); p1.setAttribute('color', '#14532d');
+      const p2 = document.createElement('a-box'); p2.setAttribute('position', '0.15 0.08 0.19'); p2.setAttribute('width', '0.13'); p2.setAttribute('height', '0.13'); p2.setAttribute('depth', '0.05'); p2.setAttribute('color', '#14532d');
+      const p3 = document.createElement('a-box'); p3.setAttribute('position', '-0.15 -0.12 0.19'); p3.setAttribute('width', '0.13'); p3.setAttribute('height', '0.13'); p3.setAttribute('depth', '0.05'); p3.setAttribute('color', '#14532d');
+      const p4 = document.createElement('a-box'); p4.setAttribute('position', '0.15 -0.12 0.19'); p4.setAttribute('width', '0.13'); p4.setAttribute('height', '0.13'); p4.setAttribute('depth', '0.05'); p4.setAttribute('color', '#14532d');
+      torso.appendChild(p1); torso.appendChild(p2); torso.appendChild(p3); torso.appendChild(p4);
+
+      // Red Swirl Crest on Vest Back
+      const redCrest = document.createElement('a-cylinder');
+      redCrest.setAttribute('position', '0 0.1 -0.18'); redCrest.setAttribute('rotation', '90 0 0'); redCrest.setAttribute('radius', '0.11'); redCrest.setAttribute('height', '0.01'); redCrest.setAttribute('color', '#dc2626');
+      torso.appendChild(redCrest);
+      group.appendChild(torso);
+
+      // 2. Arms & Fingerless Gloves with Leaf Plate
+      const armL = document.createElement('a-cylinder');
+      armL.setAttribute('position', '-0.32 0.95 0.15'); armL.setAttribute('rotation', '35 0 0'); armL.setAttribute('radius', '0.07'); armL.setAttribute('height', '0.45'); armL.setAttribute('color', '#0f172a');
+      const gloveL = document.createElement('a-sphere'); gloveL.setAttribute('position', '0 -0.26 0'); gloveL.setAttribute('radius', '0.065'); gloveL.setAttribute('color', '#1e293b');
+      const metalPlateL = document.createElement('a-box'); metalPlateL.setAttribute('position', '0 0 0.06'); metalPlateL.setAttribute('width', '0.05'); metalPlateL.setAttribute('height', '0.05'); metalPlateL.setAttribute('depth', '0.01'); metalPlateL.setAttribute('color', '#cbd5e1'); gloveL.appendChild(metalPlateL);
+      armL.appendChild(gloveL);
+
+      const armR = document.createElement('a-cylinder');
+      armR.setAttribute('position', '0.32 0.95 0'); armR.setAttribute('radius', '0.07'); armR.setAttribute('height', '0.45'); armR.setAttribute('color', '#0f172a');
+      const gloveR = document.createElement('a-sphere'); gloveR.setAttribute('position', '0 -0.26 0'); gloveR.setAttribute('radius', '0.065'); gloveR.setAttribute('color', '#1e293b');
+      armR.appendChild(gloveR);
+      group.appendChild(armL); group.appendChild(armR);
+
+      // 3. Dark Navy Shinobi Pants & Bandaged Calves
+      const legL = document.createElement('a-cylinder'); legL.setAttribute('position', '-0.15 0.35 0'); legL.setAttribute('radius', '0.11'); legL.setAttribute('height', '0.7'); legL.setAttribute('color', '#0f172a');
+      const wrapL = document.createElement('a-cylinder'); wrapL.setAttribute('position', '0 -0.15 0'); wrapL.setAttribute('radius', '0.115'); wrapL.setAttribute('height', '0.22'); wrapL.setAttribute('color', '#f8fafc'); legL.appendChild(wrapL);
+      
+      const legR = document.createElement('a-cylinder'); legR.setAttribute('position', '0.15 0.35 0'); legR.setAttribute('radius', '0.11'); legR.setAttribute('height', '0.7'); legR.setAttribute('color', '#0f172a');
+      const wrapR = document.createElement('a-cylinder'); wrapR.setAttribute('position', '0 -0.15 0'); wrapR.setAttribute('radius', '0.115'); wrapR.setAttribute('height', '0.22'); wrapR.setAttribute('color', '#f8fafc');
+      const legHolster = document.createElement('a-box'); legHolster.setAttribute('position', '0.1 0.1 0'); legHolster.setAttribute('width', '0.06'); legHolster.setAttribute('height', '0.12'); legHolster.setAttribute('depth', '0.08'); legHolster.setAttribute('color', '#0f172a');
+      legR.appendChild(wrapR); legR.appendChild(legHolster);
+      group.appendChild(legL); group.appendChild(legR);
+
+      const footL = document.createElement('a-box'); footL.setAttribute('position', '-0.15 0.04 0.05'); footL.setAttribute('width', '0.12'); footL.setAttribute('height', '0.08'); footL.setAttribute('depth', '0.22'); footL.setAttribute('color', '#1e293b');
+      const footR = document.createElement('a-box'); footR.setAttribute('position', '0.15 0.04 0.05'); footR.setAttribute('width', '0.12'); footR.setAttribute('height', '0.08'); footR.setAttribute('depth', '0.22'); footR.setAttribute('color', '#1e293b');
+      group.appendChild(footL); group.appendChild(footR);
+
+      // 4. Head with Face Mask, Exposed Eye & Slanted Headband
+      const head = document.createElement('a-sphere');
+      head.setAttribute('position', '0 1.62 0'); head.setAttribute('radius', '0.22'); head.setAttribute('color', '#fed7aa');
+
+      // Face Decal with Relaxed Right Eye and Navy Mask
+      const faceDecal = document.createElement('a-plane');
+      faceDecal.setAttribute('position', '0 -0.02 0.215'); faceDecal.setAttribute('width', '0.34'); faceDecal.setAttribute('height', '0.22');
+      faceDecal.setAttribute('material', 'src: #canvas-eyes-kakashi; transparent: true;');
+      head.appendChild(faceDecal);
+
+      // Navy Face Mask (3D Volume)
+      const mask = document.createElement('a-box');
+      mask.setAttribute('position', '0 -0.08 0.12'); mask.setAttribute('width', '0.28'); mask.setAttribute('height', '0.18'); mask.setAttribute('depth', '0.2'); mask.setAttribute('color', '#0f172a');
+      head.appendChild(mask);
+
+      // Slanted Headband Covering Left Eye (Sharingan Cover)
+      const headband = document.createElement('a-cylinder');
+      headband.setAttribute('position', '0 0.08 0'); headband.setAttribute('rotation', '0 0 -22'); headband.setAttribute('radius', '0.23'); headband.setAttribute('height', '0.08'); headband.setAttribute('color', '#0f172a');
+      const plate = document.createElement('a-cylinder');
+      plate.setAttribute('position', '-0.06 0 0.23'); plate.setAttribute('rotation', '90 0 0'); plate.setAttribute('radius', '0.075'); plate.setAttribute('height', '0.01');
+      plate.setAttribute('color', '#cbd5e1'); plate.setAttribute('material', 'src: #canvas-headband; metalness: 0.85; roughness: 0.2;');
+      headband.appendChild(plate);
+      head.appendChild(headband);
+
+      // 5. Silver Swept Spiky Hair (Flowing sharply left)
+      const hairCones = [
+        { x: -0.08, y: 0.26, z: 0, rx: 0, rz: -32, h: 0.4, r: 0.24 },
+        { x: -0.18, y: 0.22, z: 0.06, rx: -10, rz: -48, h: 0.32, r: 0.16 },
+        { x: 0.06, y: 0.22, z: 0.06, rx: -10, rz: -15, h: 0.26, r: 0.14 },
+        { x: -0.1, y: 0.24, z: -0.12, rx: 20, rz: -28, h: 0.32, r: 0.16 },
+        { x: -0.22, y: 0.16, z: -0.04, rx: 10, rz: -55, h: 0.28, r: 0.14 }
+      ];
+      hairCones.forEach(h => {
+        const spike = document.createElement('a-cone');
+        spike.setAttribute('position', `${h.x} ${h.y} ${h.z}`); spike.setAttribute('rotation', `${h.rx} 0 ${h.rz}`);
+        spike.setAttribute('radius-bottom', h.r); spike.setAttribute('radius-top', '0.01'); spike.setAttribute('height', h.h);
+        spike.setAttribute('color', '#e2e8f0'); // Silver Anime Hair
+        spike.setAttribute('material', 'roughness: 0.65;');
+        head.appendChild(spike);
+      });
+      group.appendChild(head);
+
+      // 6. Open "Icha Icha Tactics" Novel Held in Hand
+      const bookHolder = document.createElement('a-entity');
+      bookHolder.setAttribute('position', '-0.18 1.15 0.35'); bookHolder.setAttribute('rotation', '25 -20 0');
+      const bookCover = document.createElement('a-box');
+      bookCover.setAttribute('width', '0.24'); bookCover.setAttribute('height', '0.34'); bookCover.setAttribute('depth', '0.04'); bookCover.setAttribute('color', '#ea580c');
+      const bookPages = document.createElement('a-box');
+      bookPages.setAttribute('position', '0 0 0.02'); bookPages.setAttribute('width', '0.22'); bookPages.setAttribute('height', '0.3'); bookPages.setAttribute('depth', '0.02'); bookPages.setAttribute('color', '#ffffff');
+      const bookTitle = document.createElement('a-box');
+      bookTitle.setAttribute('position', '0 0 0.025'); bookTitle.setAttribute('width', '0.14'); bookTitle.setAttribute('height', '0.04'); bookTitle.setAttribute('depth', '0.01'); bookTitle.setAttribute('color', '#0f172a');
+      bookHolder.appendChild(bookCover); bookHolder.appendChild(bookPages); bookHolder.appendChild(bookTitle);
+      group.appendChild(bookHolder);
+    }
+
+    // Helper: Build Sasuke Uchiha Model
+    function buildSasukeModel(group) {
+      // 1. High-Collar Navy Blue Shirt
+      const torso = document.createElement('a-box');
+      torso.setAttribute('position', '0 1 0'); torso.setAttribute('width', '0.52'); torso.setAttribute('height', '0.72'); torso.setAttribute('depth', '0.34');
+      torso.setAttribute('color', '#1e3a8a'); // Dark Uchiha Navy
+      torso.setAttribute('shadow', 'cast: true;');
+
+      // High Popped Standing Collar
+      const collar = document.createElement('a-cylinder');
+      collar.setAttribute('position', '0 0.38 0'); collar.setAttribute('radius', '0.2'); collar.setAttribute('height', '0.16'); collar.setAttribute('open-ended', 'true'); collar.setAttribute('color', '#1e3a8a');
+      torso.appendChild(collar);
+
+      // Back Uchiha Clan Fan Crest (Red & White)
+      const uchihaCrest = document.createElement('a-cylinder');
+      uchihaCrest.setAttribute('position', '0 0.05 -0.175'); uchihaCrest.setAttribute('rotation', '90 0 0'); uchihaCrest.setAttribute('radius', '0.12'); uchihaCrest.setAttribute('height', '0.01');
+      uchihaCrest.setAttribute('color', '#ffffff'); uchihaCrest.setAttribute('material', 'src: #canvas-uchiha; roughness: 0.5;');
+      torso.appendChild(uchihaCrest);
+      group.appendChild(torso);
+
+      // 2. Arms with White Arm Warmers
+      const armL = document.createElement('a-cylinder');
+      armL.setAttribute('position', '-0.32 0.95 0'); armL.setAttribute('radius', '0.07'); armL.setAttribute('height', '0.45'); armL.setAttribute('color', '#f8fafc');
+      const handL = document.createElement('a-sphere'); handL.setAttribute('position', '0 -0.26 0'); handL.setAttribute('radius', '0.065'); handL.setAttribute('color', '#fed7aa'); armL.appendChild(handL);
+      
+      const armR = document.createElement('a-cylinder');
+      armR.setAttribute('position', '0.32 0.95 0'); armR.setAttribute('radius', '0.07'); armR.setAttribute('height', '0.45'); armR.setAttribute('color', '#f8fafc');
+      const handR = document.createElement('a-sphere'); handR.setAttribute('position', '0 -0.26 0'); handR.setAttribute('radius', '0.065'); handR.setAttribute('color', '#fed7aa'); armR.appendChild(handR);
+      group.appendChild(armL); group.appendChild(armR);
+
+      // 3. White Shorts & Blue Ninja Footwear
+      const legL = document.createElement('a-cylinder'); legL.setAttribute('position', '-0.15 0.35 0'); legL.setAttribute('radius', '0.11'); legL.setAttribute('height', '0.7'); legL.setAttribute('color', '#f8fafc');
+      const legWarmL = document.createElement('a-cylinder'); legWarmL.setAttribute('position', '0 -0.15 0'); legWarmL.setAttribute('radius', '0.115'); legWarmL.setAttribute('height', '0.22'); legWarmL.setAttribute('color', '#1e3a8a'); legL.appendChild(legWarmL);
+      
+      const legR = document.createElement('a-cylinder'); legR.setAttribute('position', '0.15 0.35 0'); legR.setAttribute('radius', '0.11'); legR.setAttribute('height', '0.7'); legR.setAttribute('color', '#f8fafc');
+      const legWarmR = document.createElement('a-cylinder'); legWarmR.setAttribute('position', '0 -0.15 0'); legWarmR.setAttribute('radius', '0.115'); legWarmR.setAttribute('height', '0.22'); legWarmR.setAttribute('color', '#1e3a8a');
+      const legBandage = document.createElement('a-cylinder'); legBandage.setAttribute('position', '0 0.1 0'); legBandage.setAttribute('radius', '0.12'); legBandage.setAttribute('height', '0.16'); legBandage.setAttribute('color', '#f8fafc');
+      const uchihaPouch = document.createElement('a-box'); uchihaPouch.setAttribute('position', '0.1 0.1 0'); uchihaPouch.setAttribute('width', '0.06'); uchihaPouch.setAttribute('height', '0.12'); uchihaPouch.setAttribute('depth', '0.08'); uchihaPouch.setAttribute('color', '#0f172a');
+      legR.appendChild(legWarmR); legR.appendChild(legBandage); legR.appendChild(uchihaPouch);
+      group.appendChild(legL); group.appendChild(legR);
+
+      const footL = document.createElement('a-box'); footL.setAttribute('position', '-0.15 0.04 0.05'); footL.setAttribute('width', '0.12'); footL.setAttribute('height', '0.08'); footL.setAttribute('depth', '0.22'); footL.setAttribute('color', '#1e3a8a');
+      const footR = document.createElement('a-box'); footR.setAttribute('position', '0.15 0.04 0.05'); footR.setAttribute('width', '0.12'); footR.setAttribute('height', '0.08'); footR.setAttribute('depth', '0.22'); footR.setAttribute('color', '#1e3a8a');
+      group.appendChild(footL); group.appendChild(footR);
+
+      // 4. Head with Intense Dark Onyx Anime Eyes
+      const head = document.createElement('a-sphere');
+      head.setAttribute('position', '0 1.62 0'); head.setAttribute('radius', '0.22'); head.setAttribute('color', '#fed7aa');
+
+      const faceDecal = document.createElement('a-plane');
+      faceDecal.setAttribute('position', '0 -0.02 0.215'); faceDecal.setAttribute('width', '0.34'); faceDecal.setAttribute('height', '0.22');
+      faceDecal.setAttribute('material', 'src: #canvas-eyes-sasuke; transparent: true;');
+      head.appendChild(faceDecal);
+
+      // Konoha Headband
+      const headband = document.createElement('a-cylinder');
+      headband.setAttribute('position', '0 0.09 0'); headband.setAttribute('radius', '0.23'); headband.setAttribute('height', '0.08'); headband.setAttribute('color', '#1e3a8a');
+      const plate = document.createElement('a-cylinder');
+      plate.setAttribute('position', '0 0 0.23'); plate.setAttribute('rotation', '90 0 0'); plate.setAttribute('radius', '0.08'); plate.setAttribute('height', '0.01');
+      plate.setAttribute('color', '#cbd5e1'); plate.setAttribute('material', 'src: #canvas-headband; metalness: 0.85; roughness: 0.2;');
+      headband.appendChild(plate);
+      head.appendChild(headband);
+
+      // 5. Jet Black Ducktail Hair with Framing Bangs
+      const bangL = document.createElement('a-cone'); bangL.setAttribute('position', '-0.16 -0.06 0.19'); bangL.setAttribute('rotation', '25 0 20'); bangL.setAttribute('radius-bottom', '0.05'); bangL.setAttribute('height', '0.28'); bangL.setAttribute('color', '#0f172a');
+      const bangR = document.createElement('a-cone'); bangR.setAttribute('position', '0.16 -0.06 0.19'); bangR.setAttribute('rotation', '25 0 -20'); bangR.setAttribute('radius-bottom', '0.05'); bangR.setAttribute('height', '0.28'); bangR.setAttribute('color', '#0f172a');
+      head.appendChild(bangL); head.appendChild(bangR);
+
+      const hairSpike1 = document.createElement('a-cone'); hairSpike1.setAttribute('position', '0 0.22 -0.1'); hairSpike1.setAttribute('rotation', '38 0 0'); hairSpike1.setAttribute('radius-bottom', '0.22'); hairSpike1.setAttribute('height', '0.36'); hairSpike1.setAttribute('color', '#0f172a');
+      const hairSpike2 = document.createElement('a-cone'); hairSpike2.setAttribute('position', '-0.12 0.18 -0.08'); hairSpike2.setAttribute('rotation', '30 0 35'); hairSpike2.setAttribute('radius-bottom', '0.15'); hairSpike2.setAttribute('height', '0.3'); hairSpike2.setAttribute('color', '#0f172a');
+      const hairSpike3 = document.createElement('a-cone'); hairSpike3.setAttribute('position', '0.12 0.18 -0.08'); hairSpike3.setAttribute('rotation', '30 0 -35'); hairSpike3.setAttribute('radius-bottom', '0.15'); hairSpike3.setAttribute('height', '0.3'); hairSpike3.setAttribute('color', '#0f172a');
+      head.appendChild(hairSpike1); head.appendChild(hairSpike2); head.appendChild(hairSpike3);
+      group.appendChild(head);
+    }
+
+    // Helper: Build Sakura Haruno Model
+    function buildSakuraModel(group) {
+      // 1. Red Qipao Tunic Dress with White Back Crest
+      const torso = document.createElement('a-box');
+      torso.setAttribute('position', '0 1 0'); torso.setAttribute('width', '0.5'); torso.setAttribute('height', '0.7'); torso.setAttribute('depth', '0.32');
+      torso.setAttribute('color', '#dc2626'); // Crimson Red
+      torso.setAttribute('shadow', 'cast: true;');
+
+      // White Circular Crest on Back
+      const whiteCircle = document.createElement('a-cylinder');
+      whiteCircle.setAttribute('position', '0 0.08 -0.165'); whiteCircle.setAttribute('rotation', '90 0 0'); whiteCircle.setAttribute('radius', '0.11'); whiteCircle.setAttribute('height', '0.01'); whiteCircle.setAttribute('color', '#ffffff');
+      torso.appendChild(whiteCircle);
+
+      // Side Slit Skirt Flaps
+      const skirtL = document.createElement('a-box'); skirtL.setAttribute('position', '-0.24 -0.32 0'); skirtL.setAttribute('width', '0.04'); skirtL.setAttribute('height', '0.22'); skirtL.setAttribute('depth', '0.33'); skirtL.setAttribute('color', '#dc2626');
+      const skirtR = document.createElement('a-box'); skirtR.setAttribute('position', '0.24 -0.32 0'); skirtR.setAttribute('width', '0.04'); skirtR.setAttribute('height', '0.22'); skirtR.setAttribute('depth', '0.33'); skirtR.setAttribute('color', '#dc2626');
+      torso.appendChild(skirtL); torso.appendChild(skirtR);
+      group.appendChild(torso);
+
+      // 2. Bare Arms with Pink Elbow Guards
+      const armL = document.createElement('a-cylinder'); armL.setAttribute('position', '-0.3 0.95 0'); armL.setAttribute('radius', '0.065'); armL.setAttribute('height', '0.45'); armL.setAttribute('color', '#fed7aa');
+      const guardL = document.createElement('a-cylinder'); guardL.setAttribute('position', '0 0 0'); guardL.setAttribute('radius', '0.075'); guardL.setAttribute('height', '0.14'); guardL.setAttribute('color', '#f472b6'); armL.appendChild(guardL);
+      const handL = document.createElement('a-sphere'); handL.setAttribute('position', '0 -0.26 0'); handL.setAttribute('radius', '0.06'); handL.setAttribute('color', '#fed7aa'); armL.appendChild(handL);
+      
+      const armR = document.createElement('a-cylinder'); armR.setAttribute('position', '0.3 0.95 0'); armR.setAttribute('radius', '0.065'); armR.setAttribute('height', '0.45'); armR.setAttribute('color', '#fed7aa');
+      const guardR = document.createElement('a-cylinder'); guardR.setAttribute('position', '0 0 0'); guardR.setAttribute('radius', '0.075'); guardR.setAttribute('height', '0.14'); guardR.setAttribute('color', '#f472b6'); armR.appendChild(guardR);
+      const handR = document.createElement('a-sphere'); handR.setAttribute('position', '0 -0.26 0'); handR.setAttribute('radius', '0.06'); handR.setAttribute('color', '#fed7aa'); armR.appendChild(handR);
+      group.appendChild(armL); group.appendChild(armR);
+
+      // 3. Navy Bicycle Shorts & Shinobi Sandals
+      const legL = document.createElement('a-cylinder'); legL.setAttribute('position', '-0.14 0.35 0'); legL.setAttribute('radius', '0.1'); legL.setAttribute('height', '0.7'); legL.setAttribute('color', '#0f172a');
+      const legR = document.createElement('a-cylinder'); legR.setAttribute('position', '0.14 0.35 0'); legR.setAttribute('radius', '0.1'); legR.setAttribute('height', '0.7'); legR.setAttribute('color', '#0f172a');
+      const legBandage = document.createElement('a-cylinder'); legBandage.setAttribute('position', '0 0.1 0'); legBandage.setAttribute('radius', '0.11'); legBandage.setAttribute('height', '0.14'); legBandage.setAttribute('color', '#f8fafc');
+      const sakuraPouch = document.createElement('a-box'); sakuraPouch.setAttribute('position', '0.08 0.1 0'); sakuraPouch.setAttribute('width', '0.05'); sakuraPouch.setAttribute('height', '0.1'); sakuraPouch.setAttribute('depth', '0.07'); sakuraPouch.setAttribute('color', '#1e3a8a');
+      legR.appendChild(legBandage); legR.appendChild(sakuraPouch);
+      group.appendChild(legL); group.appendChild(legR);
+
+      const footL = document.createElement('a-box'); footL.setAttribute('position', '-0.14 0.04 0.05'); footL.setAttribute('width', '0.11'); footL.setAttribute('height', '0.08'); footL.setAttribute('depth', '0.2'); footL.setAttribute('color', '#1e3a8a');
+      const footR = document.createElement('a-box'); footR.setAttribute('position', '0.14 0.04 0.05'); footR.setAttribute('width', '0.11'); footR.setAttribute('height', '0.08'); footR.setAttribute('depth', '0.2'); footR.setAttribute('color', '#1e3a8a');
+      group.appendChild(footL); group.appendChild(footR);
+
+      // 4. Head with Emerald Anime Eyes & Red Headband Ribbon
+      const head = document.createElement('a-sphere');
+      head.setAttribute('position', '0 1.6 0'); head.setAttribute('radius', '0.21'); head.setAttribute('color', '#fed7aa');
+
+      const faceDecal = document.createElement('a-plane');
+      faceDecal.setAttribute('position', '0 -0.02 0.205'); faceDecal.setAttribute('width', '0.32'); faceDecal.setAttribute('height', '0.21');
+      faceDecal.setAttribute('material', 'src: #canvas-eyes-sakura; transparent: true;');
+      head.appendChild(faceDecal);
+
+      // Soft Pink Bob Hair
+      const hair = document.createElement('a-sphere');
+      hair.setAttribute('position', '0 0.06 -0.04'); hair.setAttribute('radius', '0.24'); hair.setAttribute('color', '#f472b6'); // Sakura Pink
+      const bangLeft = document.createElement('a-cone'); bangLeft.setAttribute('position', '-0.14 -0.04 0.16'); bangLeft.setAttribute('rotation', '20 0 15'); bangLeft.setAttribute('radius-bottom', '0.06'); bangLeft.setAttribute('height', '0.22'); bangLeft.setAttribute('color', '#f472b6');
+      const bangRight = document.createElement('a-cone'); bangRight.setAttribute('position', '0.14 -0.04 0.16'); bangRight.setAttribute('rotation', '20 0 -15'); bangRight.setAttribute('radius-bottom', '0.06'); bangRight.setAttribute('height', '0.22'); bangRight.setAttribute('color', '#f472b6');
+      hair.appendChild(bangLeft); hair.appendChild(bangRight);
+
+      // Red Hair Ribbon Headband with Metal Plate
+      const redRibbon = document.createElement('a-cylinder');
+      redRibbon.setAttribute('position', '0 0.08 0'); redRibbon.setAttribute('radius', '0.23'); redRibbon.setAttribute('height', '0.05'); redRibbon.setAttribute('color', '#dc2626');
+      const plate = document.createElement('a-cylinder');
+      plate.setAttribute('position', '0 0 0.23'); plate.setAttribute('rotation', '90 0 0'); plate.setAttribute('radius', '0.075'); plate.setAttribute('height', '0.01');
+      plate.setAttribute('color', '#cbd5e1'); plate.setAttribute('material', 'src: #canvas-headband; metalness: 0.85; roughness: 0.2;');
+      redRibbon.appendChild(plate);
+
+      head.appendChild(hair); head.appendChild(redRibbon);
+      group.appendChild(head);
+    }
+
+    // Helper: Build Lady Tsunade Model
+    function buildTsunadeModel(group) {
+      // 1. Green Haori Overcoat with Kanji "賭" on Back
+      const torso = document.createElement('a-box');
+      torso.setAttribute('position', '0 1 0'); torso.setAttribute('width', '0.56'); torso.setAttribute('height', '0.74'); torso.setAttribute('depth', '0.36');
+      torso.setAttribute('color', '#15803d'); // Emerald Green Haori
+      torso.setAttribute('shadow', 'cast: true;');
+
+      // Low-Cut Grey Blouse & Black Obi Sash
+      const blouse = document.createElement('a-box');
+      blouse.setAttribute('position', '0 0.05 0.1'); blouse.setAttribute('width', '0.36'); blouse.setAttribute('height', '0.65'); blouse.setAttribute('depth', '0.2'); blouse.setAttribute('color', '#e2e8f0');
+      const obi = document.createElement('a-cylinder');
+      obi.setAttribute('position', '0 -0.15 0'); obi.setAttribute('radius', '0.29'); obi.setAttribute('height', '0.12'); obi.setAttribute('color', '#0f172a');
+      torso.appendChild(blouse); torso.appendChild(obi);
+
+      // Back Kanji Crest "賭" (Gamble)
+      const kanjiCrest = document.createElement('a-cylinder');
+      kanjiCrest.setAttribute('position', '0 0.08 -0.185'); kanjiCrest.setAttribute('rotation', '90 0 0'); kanjiCrest.setAttribute('radius', '0.13'); kanjiCrest.setAttribute('height', '0.01');
+      kanjiCrest.setAttribute('material', 'src: #canvas-tsunade; roughness: 0.5;');
+      torso.appendChild(kanjiCrest);
+
+      // First Hokage's Turquoise Crystal Necklace
+      const necklace = document.createElement('a-octahedron');
+      necklace.setAttribute('position', '0 0.2 0.2'); necklace.setAttribute('radius', '0.04'); necklace.setAttribute('scale', '0.7 1.4 0.7');
+      necklace.setAttribute('color', '#06b6d4'); necklace.setAttribute('material', 'emissive: #0891b2; emissiveIntensity: 0.5; roughness: 0.1;');
+      torso.appendChild(necklace);
+      group.appendChild(torso);
+
+      // 2. Wide Haori Sleeves & Hands on Hips
+      const armL = document.createElement('a-cylinder');
+      armL.setAttribute('position', '-0.34 0.95 0'); armL.setAttribute('rotation', '0 0 20'); armL.setAttribute('radius', '0.085'); armL.setAttribute('height', '0.45'); armL.setAttribute('color', '#15803d');
+      const handL = document.createElement('a-sphere'); handL.setAttribute('position', '0 -0.26 0'); handL.setAttribute('radius', '0.065'); handL.setAttribute('color', '#fed7aa'); armL.appendChild(handL);
+      
+      const armR = document.createElement('a-cylinder');
+      armR.setAttribute('position', '0.34 0.95 0'); armR.setAttribute('rotation', '0 0 -20'); armR.setAttribute('radius', '0.085'); armR.setAttribute('height', '0.45'); armR.setAttribute('color', '#15803d');
+      const handR = document.createElement('a-sphere'); handR.setAttribute('position', '0 -0.26 0'); handR.setAttribute('radius', '0.065'); handR.setAttribute('color', '#fed7aa'); armR.appendChild(handR);
+      group.appendChild(armL); group.appendChild(armR);
+
+      // 3. Dark Blue Cropped Pants & Strapped Sandals
+      const legL = document.createElement('a-cylinder'); legL.setAttribute('position', '-0.15 0.35 0'); legL.setAttribute('radius', '0.11'); legL.setAttribute('height', '0.7'); legL.setAttribute('color', '#1e293b');
+      const legR = document.createElement('a-cylinder'); legR.setAttribute('position', '0.15 0.35 0'); legR.setAttribute('radius', '0.11'); legR.setAttribute('height', '0.7'); legR.setAttribute('color', '#1e293b');
+      group.appendChild(legL); group.appendChild(legR);
+
+      const footL = document.createElement('a-box'); footL.setAttribute('position', '-0.15 0.04 0.05'); footL.setAttribute('width', '0.12'); footL.setAttribute('height', '0.08'); footL.setAttribute('depth', '0.22'); footL.setAttribute('color', '#0f172a');
+      const footR = document.createElement('a-box'); footR.setAttribute('position', '0.15 0.04 0.05'); footR.setAttribute('width', '0.12'); footR.setAttribute('height', '0.08'); footR.setAttribute('depth', '0.22'); footR.setAttribute('color', '#0f172a');
+      group.appendChild(footL); group.appendChild(footR);
+
+      // 4. Head with Diamond Byakugou Seal & Long Twin Blonde Pigtails
+      const head = document.createElement('a-sphere');
+      head.setAttribute('position', '0 1.62 0'); head.setAttribute('radius', '0.22'); head.setAttribute('color', '#fed7aa');
+
+      const faceDecal = document.createElement('a-plane');
+      faceDecal.setAttribute('position', '0 -0.02 0.215'); faceDecal.setAttribute('width', '0.34'); faceDecal.setAttribute('height', '0.22');
+      faceDecal.setAttribute('material', 'src: #canvas-eyes-tsunade; transparent: true;');
+      head.appendChild(faceDecal);
+
+      // Blonde Hair Crown & Cascading Twin Low Pigtails
+      const hairTop = document.createElement('a-sphere');
+      hairTop.setAttribute('position', '0 0.08 -0.02'); hairTop.setAttribute('radius', '0.235'); hairTop.setAttribute('color', '#fde047');
+      
+      const tailL = document.createElement('a-cylinder'); tailL.setAttribute('position', '-0.24 -0.32 -0.06'); tailL.setAttribute('rotation', '10 0 10'); tailL.setAttribute('radius', '0.055'); tailL.setAttribute('height', '0.65'); tailL.setAttribute('color', '#fde047');
+      const tailR = document.createElement('a-cylinder'); tailR.setAttribute('position', '0.24 -0.32 -0.06'); tailR.setAttribute('rotation', '10 0 -10'); tailR.setAttribute('radius', '0.055'); tailR.setAttribute('height', '0.65'); tailR.setAttribute('color', '#fde047');
+      head.appendChild(hairTop); head.appendChild(tailL); head.appendChild(tailR);
+      group.appendChild(head);
+    }
+
+    // Helper: Build Gate Guard Model (Izumo & Kotetsu)
+    function buildGuardModel(group, name, isKotetsu = false) {
+      // Jonin Tactical Vest
+      const torso = document.createElement('a-box');
+      torso.setAttribute('position', '0 1 0'); torso.setAttribute('width', '0.54'); torso.setAttribute('height', '0.74'); torso.setAttribute('depth', '0.34');
+      torso.setAttribute('color', '#15803d');
+      group.appendChild(torso);
+
+      // Arms & Legs
+      const armL = document.createElement('a-cylinder'); armL.setAttribute('position', '-0.32 0.95 0'); armL.setAttribute('radius', '0.07'); armL.setAttribute('height', '0.45'); armL.setAttribute('color', '#0f172a');
+      const armR = document.createElement('a-cylinder'); armR.setAttribute('position', '0.32 0.95 0.1'); armR.setAttribute('rotation', '25 0 0'); armR.setAttribute('radius', '0.07'); armR.setAttribute('height', '0.45'); armR.setAttribute('color', '#0f172a');
+      group.appendChild(armL); group.appendChild(armR);
+
+      const legL = document.createElement('a-cylinder'); legL.setAttribute('position', '-0.15 0.35 0'); legL.setAttribute('radius', '0.11'); legL.setAttribute('height', '0.7'); legL.setAttribute('color', '#0f172a');
+      const legR = document.createElement('a-cylinder'); legR.setAttribute('position', '0.15 0.35 0'); legR.setAttribute('radius', '0.11'); legR.setAttribute('height', '0.7'); legR.setAttribute('color', '#0f172a');
+      group.appendChild(legL); group.appendChild(legR);
+
+      const footL = document.createElement('a-box'); footL.setAttribute('position', '-0.15 0.04 0.05'); footL.setAttribute('width', '0.12'); footL.setAttribute('height', '0.08'); footL.setAttribute('depth', '0.22'); footL.setAttribute('color', '#1e293b');
+      const footR = document.createElement('a-box'); footR.setAttribute('position', '0.15 0.04 0.05'); footR.setAttribute('width', '0.12'); footR.setAttribute('height', '0.08'); footR.setAttribute('depth', '0.22'); footR.setAttribute('color', '#1e293b');
+      group.appendChild(footL); group.appendChild(footR);
+
+      const head = document.createElement('a-sphere');
+      head.setAttribute('position', '0 1.62 0'); head.setAttribute('radius', '0.22'); head.setAttribute('color', '#fed7aa');
+
+      // Headband with Leaf Plate
+      const hb = document.createElement('a-cylinder');
+      hb.setAttribute('position', '0 0.08 0'); hb.setAttribute('radius', '0.23'); hb.setAttribute('height', '0.08'); hb.setAttribute('color', '#1e3a8a');
+      const plate = document.createElement('a-cylinder');
+      plate.setAttribute('position', '0 0 0.23'); plate.setAttribute('rotation', '90 0 0'); plate.setAttribute('radius', '0.075'); plate.setAttribute('height', '0.01');
+      plate.setAttribute('color', '#cbd5e1'); plate.setAttribute('material', 'src: #canvas-headband; metalness: 0.8; roughness: 0.2;');
+      hb.appendChild(plate);
+      head.appendChild(hb);
+
+      if (isKotetsu) {
+        // Bandage across nose bridge & chin
+        const band = document.createElement('a-box');
+        band.setAttribute('position', '0 -0.03 0.215'); band.setAttribute('width', '0.16'); band.setAttribute('height', '0.06'); band.setAttribute('depth', '0.02'); band.setAttribute('color', '#f8fafc');
+        head.appendChild(band);
+        // Spiky Hair
+        const hair = document.createElement('a-cone');
+        hair.setAttribute('position', '0 0.22 0'); hair.setAttribute('radius-bottom', '0.22'); hair.setAttribute('height', '0.3'); hair.setAttribute('color', '#1e293b');
+        head.appendChild(hair);
+      } else {
+        // Dark brown bangs covering right eye
+        const bang = document.createElement('a-cone');
+        bang.setAttribute('position', '0.12 0 0.18'); bang.setAttribute('rotation', '20 0 -30'); bang.setAttribute('radius-bottom', '0.09'); bang.setAttribute('height', '0.26'); bang.setAttribute('color', '#451a03');
+        head.appendChild(bang);
+      }
+      group.appendChild(head);
+
+      // Polished Shinobi Spear / Polearm
+      const spear = document.createElement('a-cylinder');
+      spear.setAttribute('position', isKotetsu ? '-0.38 1.1 0.2' : '0.38 1.1 0.2'); spear.setAttribute('radius', '0.025'); spear.setAttribute('height', '2.3'); spear.setAttribute('color', '#78350f');
+      const blade = document.createElement('a-cone');
+      blade.setAttribute('position', '0 1.25 0'); blade.setAttribute('radius-bottom', '0.055'); blade.setAttribute('height', '0.3'); blade.setAttribute('color', '#cbd5e1'); blade.setAttribute('material', 'metalness: 0.9; roughness: 0.1;');
+      spear.appendChild(blade);
+      group.appendChild(spear);
+    }
+
+    // Helper: Build Anbu Black Ops Patrol
+    function createPatrollingAnbu(startX, y, startZ, dir = 1) {
+      const container = document.getElementById('village-npcs');
+      const anbu = document.createElement('a-entity');
+      anbu.setAttribute('class', 'clickable npc-entity');
+      anbu.setAttribute('position', `${startX} ${y} ${startZ}`);
+
+      // 1. Black Ninja Suit with Grey Tactical Armor
+      const torso = document.createElement('a-box');
+      torso.setAttribute('position', '0 1 0'); torso.setAttribute('width', '0.52'); torso.setAttribute('height', '0.74'); torso.setAttribute('depth', '0.34');
+      torso.setAttribute('color', '#334155'); torso.setAttribute('shadow', 'cast: true;');
+
+      const chestPlate = document.createElement('a-box');
+      chestPlate.setAttribute('position', '0 0.08 0.18'); chestPlate.setAttribute('width', '0.44'); chestPlate.setAttribute('height', '0.5'); chestPlate.setAttribute('depth', '0.04');
+      chestPlate.setAttribute('color', '#cbd5e1'); chestPlate.setAttribute('material', 'metalness: 0.4; roughness: 0.5;');
+      torso.appendChild(chestPlate);
+
+      // Red Anbu Flame Spiral Tattoo on Left Shoulder
+      const armL = document.createElement('a-cylinder'); armL.setAttribute('position', '-0.32 0.95 0'); armL.setAttribute('radius', '0.07'); armL.setAttribute('height', '0.5'); armL.setAttribute('color', '#0f172a');
+      const tattoo = document.createElement('a-cylinder'); tattoo.setAttribute('position', '-0.075 0.16 0'); tattoo.setAttribute('rotation', '0 0 90'); tattoo.setAttribute('radius', '0.038'); tattoo.setAttribute('height', '0.01'); tattoo.setAttribute('color', '#dc2626');
+      armL.appendChild(tattoo);
+      
+      const armR = document.createElement('a-cylinder'); armR.setAttribute('position', '0.32 0.95 0'); armR.setAttribute('radius', '0.07'); armR.setAttribute('height', '0.5'); armR.setAttribute('color', '#0f172a');
+      anbu.appendChild(torso); anbu.appendChild(armL); anbu.appendChild(armR);
+
+      const legL = document.createElement('a-cylinder'); legL.setAttribute('position', '-0.15 0.35 0'); legL.setAttribute('radius', '0.11'); legL.setAttribute('height', '0.7'); legL.setAttribute('color', '#0f172a');
+      const legR = document.createElement('a-cylinder'); legR.setAttribute('position', '0.15 0.35 0'); legR.setAttribute('radius', '0.11'); legR.setAttribute('height', '0.7'); legR.setAttribute('color', '#0f172a');
+      anbu.appendChild(legL); anbu.appendChild(legR);
+
+      // 2. Porcelain Animal Mask with Red Swirl Marks
+      const head = document.createElement('a-sphere');
+      head.setAttribute('position', '0 1.62 0'); head.setAttribute('radius', '0.22'); head.setAttribute('color', '#0f172a');
+      
+      const mask = document.createElement('a-sphere');
+      mask.setAttribute('position', '0 0 0.08'); mask.setAttribute('radius', '0.22'); mask.setAttribute('color', '#ffffff');
+      mask.setAttribute('material', 'src: #canvas-anbu-mask; roughness: 0.3;');
+      
+      // Pointed Animal Ears
+      const earL = document.createElement('a-cone'); earL.setAttribute('position', '-0.12 0.18 0'); earL.setAttribute('rotation', '15 0 25'); earL.setAttribute('radius-bottom', '0.04'); earL.setAttribute('height', '0.12'); earL.setAttribute('color', '#ffffff');
+      const earR = document.createElement('a-cone'); earR.setAttribute('position', '0.12 0.18 0'); earR.setAttribute('rotation', '15 0 -25'); earR.setAttribute('radius-bottom', '0.04'); earR.setAttribute('height', '0.12'); earR.setAttribute('color', '#ffffff');
+      mask.appendChild(earL); mask.appendChild(earR);
+      head.appendChild(mask);
+      anbu.appendChild(head);
+
+      // 3. Chokuto Katana Strapped on Back
+      const katana = document.createElement('a-cylinder');
+      katana.setAttribute('position', '0 1.15 -0.22'); katana.setAttribute('rotation', '0 0 -45'); katana.setAttribute('radius', '0.025'); katana.setAttribute('height', '1.15'); katana.setAttribute('color', '#1e293b');
+      const guard = document.createElement('a-cylinder'); guard.setAttribute('position', '0 0.48 0'); guard.setAttribute('radius', '0.05'); guard.setAttribute('height', '0.015'); guard.setAttribute('color', '#d97706'); katana.appendChild(guard);
+      const hilt = document.createElement('a-cylinder'); hilt.setAttribute('position', '0 0.62 0'); hilt.setAttribute('radius', '0.03'); hilt.setAttribute('height', '0.26'); hilt.setAttribute('color', '#ffffff'); katana.appendChild(hilt);
+      anbu.appendChild(katana);
+
+      // Smooth Patrol Animation Loop
+      anbu.setAttribute('animation', `property: position; to: ${startX} ${y} ${startZ - (dir * 28)}; dir: alternate; loop: true; dur: 9000; easing: linear;`);
+
+      anbu.onclick = () => {
+        soundEngine.playDialogueChime();
+        showZoneBanner('ANBU Black Ops: "On patrol under direct orders from the Hokage."');
+        showVRNotification('ANBU: "Keep the peace in Konoha."');
+      };
+
+      container.appendChild(anbu);
+    }
+
+    // NPC Proximity Check
+    let nearestNPC = null;
+    function checkNearbyNPC(px, pz) {
+      let closest = null;
+      let minDist = 4.2;
+
+      for (let i = 0; i < NPC_DATA.length; i++) {
+        const npc = NPC_DATA[i];
+        const dist = Math.hypot(px - npc.x, pz - npc.z);
+        if (dist < minDist) {
+          minDist = dist;
+          closest = npc;
+        }
+      }
+
+      const prompt = document.getElementById('interact-prompt');
+      if (closest) {
+        nearestNPC = closest;
+        if (prompt) {
+          prompt.textContent = `Press [E] or Click to talk with ${closest.name}`;
+          prompt.classList.add('visible');
+        }
+      } else {
+        nearestNPC = null;
+        if (prompt) prompt.classList.remove('visible');
+      }
+    }
+
+    function interactWithNearestNPC() {
+      if (nearestNPC) {
+        openNPCDialogue(nearestNPC.id);
+      }
+    }
+
+    function openNPCDialogue(npcId) {
+      const npc = NPC_DATA.find(n => n.id === npcId);
+      if (!npc) return;
+
+      soundEngine.init();
+      soundEngine.playDialogueChime();
+
+      activeDialogueNPC = npc;
+      dialogueIndex = (dialogueIndex + 1) % npc.dialogues.length;
+      const text = npc.dialogues[dialogueIndex];
+
+      // Update 2D Box
+      const dBox = document.getElementById('dialogue-box');
+      const dAvatar = document.getElementById('diag-avatar');
+      const dName = document.getElementById('diag-name');
+      const dText = document.getElementById('diag-text');
+
+      if (dAvatar) dAvatar.textContent = npc.avatar;
+      if (dName) dName.textContent = npc.name;
+      if (dText) dText.textContent = text;
+      if (dBox) dBox.classList.add('active');
+
+      // Update In-VR Notification
+      showVRNotification(`${npc.name}: ${text}`);
+      showZoneBanner(`💬 ${npc.name}`);
+    }
+
+    function closeDialogueBox() {
+      const dBox = document.getElementById('dialogue-box');
+      if (dBox) dBox.classList.remove('active');
+    }
+
+    generateNPCModels();
+
+    /* ===================================================================
+       7. ENVIRONMENT SUB-COMPONENTS & PROCEDURAL SCENE BUILDERS
+       =================================================================== */
+    AFRAME.registerComponent('red-lantern', {
+      init: function() {
+        const el = this.el;
+        const cord = document.createElement('a-cylinder');
+        cord.setAttribute('radius', '0.02'); cord.setAttribute('height', '0.4'); cord.setAttribute('color', '#1e293b'); cord.setAttribute('position', '0 0.2 0');
+        el.appendChild(cord);
+
+        const lantern = document.createElement('a-sphere');
+        lantern.setAttribute('radius', '0.35'); lantern.setAttribute('scale', '0.85 1.25 0.85'); lantern.setAttribute('color', '#ef4444'); lantern.setAttribute('material', 'emissive: #b91c1c; emissiveIntensity: 0.4; roughness: 0.6;');
+        el.appendChild(lantern);
+
+        const capTop = document.createElement('a-cylinder');
+        capTop.setAttribute('radius', '0.22'); capTop.setAttribute('height', '0.08'); capTop.setAttribute('color', '#0f172a'); capTop.setAttribute('position', '0 0.42 0');
+        el.appendChild(capTop);
+
+        const capBot = document.createElement('a-cylinder');
+        capBot.setAttribute('radius', '0.22'); capBot.setAttribute('height', '0.08'); capBot.setAttribute('color', '#0f172a'); capBot.setAttribute('position', '0 -0.42 0');
+        el.appendChild(capBot);
+
+        const light = document.createElement('a-light');
+        light.setAttribute('type', 'point'); light.setAttribute('color', '#ffedd5'); light.setAttribute('intensity', '0.4'); light.setAttribute('distance', '6');
+        el.appendChild(light);
+      }
+    });
+
+    AFRAME.registerComponent('cloud-rotator', {
+      tick: function(t, dt) {
+        this.el.object3D.rotation.y += 0.00015 * (dt / 16.6);
+      }
+    });
+
+    AFRAME.registerComponent('water-shimmer', {
+      tick: function(t, dt) {
+        const wave = Math.sin(t * 0.002) * 0.05 + 0.85;
+        this.el.setAttribute('material', 'opacity', wave);
+      }
+    });
+
+    AFRAME.registerComponent('target-hit-box', {
+      schema: { points: { type: 'number', default: 100 }, matType: { type: 'string', default: 'wood' } },
+      init: function() {
+        this.el.classList.add('target-collidable');
+      }
+    });
+
+    AFRAME.registerComponent('leaf-system', {
+      init: function() {
+        const count = 45;
+        this.leaves = [];
+        const scene = this.el;
+
+        for (let i = 0; i < count; i++) {
+          const leaf = document.createElement('a-plane');
+          const isSakura = Math.random() > 0.4;
+          leaf.setAttribute('width', isSakura ? '0.22' : '0.28');
+          leaf.setAttribute('height', isSakura ? '0.14' : '0.18');
+          leaf.setAttribute('color', isSakura ? '#fbcfe8' : '#86efac');
+          leaf.setAttribute('material', 'side: double; transparent: true; opacity: 0.85;');
+
+          const startX = (Math.random() - 0.5) * 120;
+          const startY = 4 + Math.random() * 18;
+          const startZ = (Math.random() - 0.5) * 140;
+
+          leaf.setAttribute('position', `${startX} ${startY} ${startZ}`);
+          scene.appendChild(leaf);
+
+          this.leaves.push({
+            el: leaf,
+            x: startX,
+            y: startY,
+            z: startZ,
+            rotX: Math.random() * 360,
+            rotY: Math.random() * 360,
+            speedY: 0.02 + Math.random() * 0.03,
+            swaySpeed: 0.0015 + Math.random() * 0.002,
+            swayOffset: Math.random() * 100
+          });
+        }
+      },
+      tick: function(t, dt) {
+        const factor = dt / 16.6;
+        for (let i = 0; i < this.leaves.length; i++) {
+          const l = this.leaves[i];
+          l.y -= l.speedY * factor;
+          l.x += Math.sin(t * l.swaySpeed + l.swayOffset) * 0.03 * factor;
+          l.z += Math.cos(t * l.swaySpeed + l.swayOffset) * 0.02 * factor;
+          l.rotX += 1.5 * factor;
+          l.rotY += 2 * factor;
+
+          if (l.y < 0.1) {
+            l.y = 18 + Math.random() * 6;
+            l.x = (Math.random() - 0.5) * 120;
+            l.z = (Math.random() - 0.5) * 140;
+          }
+
+          l.el.setAttribute('position', `${l.x} ${l.y} ${l.z}`);
+          l.el.setAttribute('rotation', `${l.rotX} ${l.rotY} 0`);
+        }
+      }
+    });
+
+    function generateSurroundingMountains() {
+      const ring = document.getElementById('mountain-ring');
+      const count = 18;
+      const radius = 170;
+
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        if (angle > Math.PI * 0.35 && angle < Math.PI * 0.65) continue;
+        if (angle > Math.PI * 1.35 && angle < Math.PI * 1.65) continue;
+
+        const x = Math.sin(angle) * radius;
+        const z = Math.cos(angle) * radius;
+        const height = 65 + Math.random() * 45;
+        const baseRadius = 45 + Math.random() * 25;
+
+        const mountain = document.createElement('a-cone');
+        mountain.setAttribute('position', `${x} ${height / 2 - 10} ${z}`);
+        mountain.setAttribute('radius-bottom', baseRadius);
+        mountain.setAttribute('radius-top', '2');
+        mountain.setAttribute('height', height);
+        mountain.setAttribute('segments-radial', '7');
+        mountain.setAttribute('color', i % 2 === 0 ? '#4d693f' : '#3f5934');
+        mountain.setAttribute('material', 'roughness: 1;');
+        ring.appendChild(mountain);
+      }
+
+      const cliffTrees = document.getElementById('cliff-trees');
+      for (let x = -70; x <= 70; x += 10) {
+        const tree = createPineTree(x, 0, (Math.random() - 0.5) * 8, 1.2 + Math.random() * 0.6);
+        cliffTrees.appendChild(tree);
+      }
+    }
+
+    function generateClouds() {
+      const cluster = document.getElementById('cloud-cluster');
+      for (let i = 0; i < 22; i++) {
+        const cloud = document.createElement('a-entity');
+        const cx = (Math.random() - 0.5) * 320;
+        const cy = (Math.random() - 0.5) * 25;
+        const cz = (Math.random() - 0.5) * 320;
+        cloud.setAttribute('position', `${cx} ${cy} ${cz}`);
+
+        for (let p = 0; p < 5; p++) {
+          const puff = document.createElement('a-sphere');
+          const pr = 6 + Math.random() * 8;
+          puff.setAttribute('radius', pr);
+          puff.setAttribute('color', '#ffffff');
+          puff.setAttribute('material', 'roughness: 1; opacity: 0.92;');
+          puff.setAttribute('position', `${(p - 2) * 6} ${(Math.random() - 0.5) * 3} ${(Math.random() - 0.5) * 4}`);
+          puff.setAttribute('scale', '1.6 0.7 1.2');
+          cloud.appendChild(puff);
+        }
+        cluster.appendChild(cloud);
+      }
+    }
+
+    function createVillageHouse(x, z, rotY, style = 1, scale = 1) {
+      const house = document.createElement('a-entity');
+      house.setAttribute('position', `${x} 0 ${z}`);
+      house.setAttribute('rotation', `0 ${rotY} 0`);
+      house.setAttribute('scale', `${scale} ${scale} ${scale}`);
+
+      const wallColor = style === 1 ? '#fef3c7' : (style === 2 ? '#e2e8f0' : '#fed7aa');
+      const roofColor = style === 3 ? '#991b1b' : '#1e293b';
+
+      const base = document.createElement('a-box');
+      base.setAttribute('position', '0 0.5 0'); base.setAttribute('width', '8.4'); base.setAttribute('height', '1'); base.setAttribute('depth', '7.4'); base.setAttribute('color', '#64748b');
+      house.appendChild(base);
+
+      const body = document.createElement('a-box');
+      body.setAttribute('position', '0 3.5 0'); body.setAttribute('width', '8'); body.setAttribute('height', '5'); body.setAttribute('depth', '7'); body.setAttribute('color', wallColor); body.setAttribute('material', 'roughness: 0.85;'); body.setAttribute('shadow', 'cast: true; receive: true;');
+      house.appendChild(body);
+
+      const p1 = document.createElement('a-box');
+      p1.setAttribute('position', '-3.9 3.5 3.4'); p1.setAttribute('width', '0.35'); p1.setAttribute('height', '5'); p1.setAttribute('depth', '0.35'); p1.setAttribute('color', '#5c3110');
+      house.appendChild(p1);
+
+      const p2 = document.createElement('a-box');
+      p2.setAttribute('position', '3.9 3.5 3.4'); p2.setAttribute('width', '0.35'); p2.setAttribute('height', '5'); p2.setAttribute('depth', '0.35'); p2.setAttribute('color', '#5c3110');
+      house.appendChild(p2);
+
+      const roof = document.createElement('a-box');
+      roof.setAttribute('position', '0 6.6 0'); roof.setAttribute('width', '9.6'); roof.setAttribute('height', '0.8'); roof.setAttribute('depth', '8.6'); roof.setAttribute('color', roofColor); roof.setAttribute('material', 'src: #canvas-roof; roughness: 0.7;'); roof.setAttribute('shadow', 'cast: true;');
+      house.appendChild(roof);
+
+      const ridge = document.createElement('a-cone');
+      ridge.setAttribute('position', '0 7.8 0'); ridge.setAttribute('radius-bottom', '5.5'); ridge.setAttribute('radius-top', '0.4'); ridge.setAttribute('height', '2.2'); ridge.setAttribute('segments-radial', '4'); ridge.setAttribute('rotation', '0 45 0'); ridge.setAttribute('color', roofColor);
+      house.appendChild(ridge);
+
+      const door = document.createElement('a-box');
+      door.setAttribute('position', '0 2.2 3.52'); door.setAttribute('width', '2.8'); door.setAttribute('height', '3.4'); door.setAttribute('depth', '0.1'); door.setAttribute('color', '#78350f');
+      house.appendChild(door);
+
+      const win = document.createElement('a-box');
+      win.setAttribute('position', '2.2 3.5 3.52'); win.setAttribute('width', '1.8'); win.setAttribute('height', '1.8'); win.setAttribute('depth', '0.1'); win.setAttribute('color', '#451a03');
+      house.appendChild(win);
+
+      const lantern = document.createElement('a-entity');
+      lantern.setAttribute('position', '-2.6 4 3.8'); lantern.setAttribute('red-lantern', '');
+      house.appendChild(lantern);
+
+      return house;
+    }
+
+    function generateVillageHouses() {
+      const container = document.getElementById('village-buildings');
+
+      const eastPositions = [
+        { z: 50, s: 1 }, { z: 38, s: 2 }, { z: 26, s: 3 }, { z: 12, s: 1 }, { z: -2, s: 2 }, { z: -14, s: 3 }
+      ];
+      eastPositions.forEach(p => {
+        container.appendChild(createVillageHouse(15, p.z, -90, p.s, 1));
+        container.appendChild(createVillageHouse(28, p.z + 4, -90, (p.s % 3) + 1, 0.9));
+      });
+
+      const westPositions = [
+        { z: 50, s: 2 }, { z: 38, s: 1 }, { z: 12, s: 3 }, { z: -2, s: 1 }, { z: -14, s: 2 }
+      ];
+      westPositions.forEach(p => {
+        container.appendChild(createVillageHouse(-15, p.z, 90, p.s, 1));
+        container.appendChild(createVillageHouse(-28, p.z + 4, 90, (p.s % 3) + 1, 0.9));
+      });
+
+      container.appendChild(createVillageHouse(-22, -28, 45, 3, 1.1));
+      container.appendChild(createVillageHouse(22, -28, -45, 3, 1.1));
+    }
+
+    function createPineTree(x, y, z, scale = 1) {
+      const tree = document.createElement('a-entity');
+      tree.setAttribute('position', `${x} ${y} ${z}`); tree.setAttribute('scale', `${scale} ${scale} ${scale}`);
+
+      const trunk = document.createElement('a-cylinder');
+      trunk.setAttribute('position', '0 2 0'); trunk.setAttribute('radius', '0.4'); trunk.setAttribute('height', '4'); trunk.setAttribute('color', '#5c3110'); trunk.setAttribute('material', 'roughness: 0.9;'); trunk.setAttribute('shadow', 'cast: true;');
+      tree.appendChild(trunk);
+
+      const tiers = [
+        { y: 3.5, r: 2.8, h: 3, c: '#235327' },
+        { y: 5.5, r: 2.2, h: 2.8, c: '#2f6934' },
+        { y: 7.2, r: 1.5, h: 2.5, c: '#3e8445' }
+      ];
+      tiers.forEach(t => {
+        const cone = document.createElement('a-cone');
+        cone.setAttribute('position', `0 ${t.y} 0`); cone.setAttribute('radius-bottom', t.r); cone.setAttribute('radius-top', '0.1'); cone.setAttribute('height', t.h); cone.setAttribute('segments-radial', '7'); cone.setAttribute('color', t.c); cone.setAttribute('material', 'roughness: 0.85;'); cone.setAttribute('shadow', 'cast: true;');
+        tree.appendChild(cone);
+      });
+
+      return tree;
+    }
+
+    function createSakuraTree(x, y, z, scale = 1) {
+      const tree = document.createElement('a-entity');
+      tree.setAttribute('position', `${x} ${y} ${z}`); tree.setAttribute('scale', `${scale} ${scale} ${scale}`);
+
+      const trunk = document.createElement('a-cylinder');
+      trunk.setAttribute('position', '0 2 0'); trunk.setAttribute('radius', '0.35'); trunk.setAttribute('height', '4'); trunk.setAttribute('color', '#4a2511'); trunk.setAttribute('shadow', 'cast: true;');
+      tree.appendChild(trunk);
+
+      const blooms = [
+        { x: 0, y: 4.8, z: 0, r: 2.4, c: '#f472b6' },
+        { x: -1.2, y: 4.2, z: 0.8, r: 1.8, c: '#fbcfe8' },
+        { x: 1.2, y: 4.4, z: -0.6, r: 1.9, c: '#f9a8d4' },
+        { x: 0, y: 5.8, z: 0, r: 1.6, c: '#fdf2f8' }
+      ];
+      blooms.forEach(b => {
+        const ball = document.createElement('a-sphere');
+        ball.setAttribute('position', `${b.x} ${b.y} ${b.z}`); ball.setAttribute('radius', b.r); ball.setAttribute('color', b.c); ball.setAttribute('material', 'roughness: 0.9; opacity: 0.95;'); ball.setAttribute('shadow', 'cast: true;');
+        tree.appendChild(ball);
+      });
+
+      return tree;
+    }
+
+    function generateNature() {
+      const nature = document.getElementById('village-nature');
+
+      nature.appendChild(createSakuraTree(-12, 0, 62, 1.2));
+      nature.appendChild(createSakuraTree(12, 0, 62, 1.2));
+
+      nature.appendChild(createSakuraTree(7.5, 0, 32, 1.1));
+      nature.appendChild(createSakuraTree(-7.5, 0, 4, 1.1));
+      nature.appendChild(createSakuraTree(7.5, 0, -10, 1.1));
+
+      for (let i = 0; i < 18; i++) {
+        const tx = -45 - Math.random() * 25;
+        const tz = (Math.random() - 0.5) * 60;
+        nature.appendChild(createPineTree(tx, 0, tz, 1 + Math.random() * 0.8));
+      }
+
+      for (let i = 0; i < 16; i++) {
+        const tx = 44 + Math.random() * 25;
+        const tz = (Math.random() - 0.5) * 70;
+        nature.appendChild(createPineTree(tx, 0, tz, 1 + Math.random() * 0.8));
+        if (i % 3 === 0) {
+          nature.appendChild(createSakuraTree(tx - 6, 0, tz + 4, 0.95));
+        }
+      }
+
+      const rocksContainer = document.getElementById('river-rocks');
+      for (let i = 0; i < 30; i++) {
+        const rock = document.createElement('a-sphere');
+        const rx = (Math.random() > 0.5 ? 6 : -6) + (Math.random() - 0.5) * 3;
+        const rz = (Math.random() - 0.5) * 110;
+        const s = 0.5 + Math.random() * 1.1;
+        rock.setAttribute('position', `${rx} 0.2 ${rz}`);
+        rock.setAttribute('scale', `${s * 1.3} ${s * 0.6} ${s * 1.1}`);
+        rock.setAttribute('color', '#64748b');
+        rock.setAttribute('material', 'roughness: 0.9;');
+        rocksContainer.appendChild(rock);
+      }
+    }
+
+    function generateInfrastructure() {
+      const infra = document.getElementById('village-infrastructure');
+      const polePositions = [
+        { x: -7, z: 52 }, { x: 7, z: 36 }, { x: -7, z: 20 }, { x: 7, z: 4 }, { x: -7, z: -12 }
+      ];
+
+      polePositions.forEach(p => {
+        const pole = document.createElement('a-entity');
+        pole.setAttribute('position', `${p.x} 0 ${p.z}`);
+
+        const shaft = document.createElement('a-cylinder');
+        shaft.setAttribute('position', '0 4.5 0'); shaft.setAttribute('radius', '0.18'); shaft.setAttribute('height', '9'); shaft.setAttribute('color', '#451a03'); shaft.setAttribute('shadow', 'cast: true;');
+        pole.appendChild(shaft);
+
+        const cross = document.createElement('a-box');
+        cross.setAttribute('position', '0 8.2 0'); cross.setAttribute('width', '2.2'); cross.setAttribute('height', '0.15'); cross.setAttribute('depth', '0.15'); cross.setAttribute('color', '#78350f');
+        pole.appendChild(cross);
+
+        const lantern = document.createElement('a-entity');
+        lantern.setAttribute('position', '0 6.5 0.4'); lantern.setAttribute('red-lantern', '');
+        pole.appendChild(lantern);
+
+        infra.appendChild(pole);
+      });
+
+      const fenceContainer = document.getElementById('training-fence');
+      for (let angle = 0; angle < Math.PI * 2; angle += 0.35) {
+        if (angle > 5.8 || angle < 0.6) continue;
+        const fx = Math.sin(angle) * 15;
+        const fz = Math.cos(angle) * 15;
+        const post = document.createElement('a-cylinder');
+        post.setAttribute('position', `${fx} 0.6 ${fz}`); post.setAttribute('radius', '0.1'); post.setAttribute('height', '1.3'); post.setAttribute('color', '#78350f');
+        fenceContainer.appendChild(post);
+      }
+    }
+
+    generateSurroundingMountains();
+    generateClouds();
+    generateVillageHouses();
+    generateNature();
+    generateInfrastructure();
+
+    /* 8. Zone Detection & Lore */
+    const ZONES = [
+      { name: '⛩️ Konoha Main Entrance', x: 0, z: 68, r: 16 },
+      { name: '🍜 Ichiraku Ramen Shop', x: -14, z: 25, r: 14 },
+      { name: '🏯 Hokage Administrative Tower', x: 0, z: -25, r: 18 },
+      { name: '🎯 Training Ground #7', x: -32, z: 0, r: 20 },
+      { name: '🌊 Arched River Bridge', x: 30, z: 10, r: 18 },
+      { name: '🏡 Residential East District', x: 20, z: 40, r: 18 },
+      { name: '🍃 Hokage Monument Overlook', x: 0, z: -55, r: 24 }
+    ];
+
+    let currentZoneName = '';
+
+    function checkPlayerZone(px, pz) {
+      let activeZone = null;
+      for (let i = 0; i < ZONES.length; i++) {
+        const z = ZONES[i];
+        const dist = Math.hypot(px - z.x, pz - z.z);
+        if (dist < z.r) {
+          activeZone = z.name;
+          break;
+        }
+      }
+
+      if (activeZone && activeZone !== currentZoneName) {
+        currentZoneName = activeZone;
+        soundEngine.playTaikoHit();
+        showZoneBanner(activeZone);
+        showVRNotification(activeZone);
+        const wristZone = document.getElementById('vr-wrist-zone');
+        if (wristZone) wristZone.setAttribute('value', activeZone.replace(/^[^\s]+\s/, ''));
+      }
+    }
+
+    function showZoneBanner(text) {
+      const banner = document.getElementById('zone-banner');
+      banner.textContent = text;
+      banner.classList.add('visible');
+      clearTimeout(banner._timer);
+      banner._timer = setTimeout(() => {
+        banner.classList.remove('visible');
+      }, 4000);
+    }
+
+    function showVRNotification(text) {
+      const notif = document.getElementById('vr-notification');
+      const notifText = document.getElementById('vr-notif-text');
+      if (notif && notifText) {
+        notifText.setAttribute('value', text);
+        notif.setAttribute('visible', 'true');
+        clearTimeout(notif._timer);
+        notif._timer = setTimeout(() => {
+          notif.setAttribute('visible', 'false');
+        }, 3500);
+      }
+    }
+
+    function updateScore(points) {
+      trainingScore += points;
+      document.getElementById('score-counter').textContent = trainingScore;
+      const wristScore = document.getElementById('vr-wrist-score');
+      if (wristScore) wristScore.setAttribute('value', `SCORE: ${trainingScore}`);
+    }
+
+    function teleportPlayer(x, y, z, rotY = 0) {
+      soundEngine.init();
+      soundEngine.playTaikoHit();
+      const rig = document.getElementById('player-rig');
+      rig.setAttribute('position', `${x} ${y} ${z}`);
+      rig.setAttribute('rotation', `0 ${rotY} 0`);
+      showVRNotification('Teleported!');
+    }
+
+    function inspectLocation(infoText) {
+      soundEngine.init();
+      soundEngine.playTaikoHit();
+      showZoneBanner('📖 ' + infoText);
+      showVRNotification(infoText);
+    }
+  </script>
+</body>
+</html>
